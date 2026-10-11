@@ -596,10 +596,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 let y0 = pr.min.y + (base - slot.y - slot.a) * s;
                 let y1 = pr.min.y + (base - slot.y + slot.d) * s;
                 let since = crate::now_ms() - app.canvas.caret_visible_since;
-                // The caret glides to its new place and stays lit on the way (aniefork).
-                let (bar, gliding) = crate::aniefork::caret::glide(app, ui, content_origin, &geo, [pos2(x, y0), pos2(x, y1)], focused);
-                if (((since / 530.0) as u64).is_multiple_of(2) || gliding) && focused {
-                    painter.line_segment(bar, Stroke::new(1.5, t.caret));
+                // The caret glides and fades like Word's (aniefork).
+                let on = ((since / 530.0) as u64).is_multiple_of(2);
+                let look = crate::aniefork::caret::look(app, ui, content_origin, &geo, [pos2(x, y0), pos2(x, y1)], focused, since, on);
+                if look.opacity > 0.0 && focused {
+                    painter.line_segment(look.bar, Stroke::new(1.5, t.caret.gamma_multiply(look.opacity)));
                 }
                 if focused {
                     ui.ctx().request_repaint_after(std::time::Duration::from_millis(530 - (since as u64 % 530)));
@@ -631,11 +632,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             } else {
                 [pos2(x.round() + 0.5, y0), pos2(x.round() + 0.5, y1)]
             };
-            // The caret glides to its new place and stays lit on the way (aniefork).
+            // The caret glides and fades like Word's (aniefork).
             let shown = app.session.sel.is_collapsed() && focused;
-            let (bar, gliding) = crate::aniefork::caret::glide(app, ui, content_origin, &geo, bar, shown);
-            if shown && (on || gliding) {
-                painter.line_segment(bar, Stroke::new(1.5, caret_color));
+            let look = crate::aniefork::caret::look(app, ui, content_origin, &geo, bar, shown, since, on);
+            if shown && look.opacity > 0.0 {
+                painter.line_segment(look.bar, Stroke::new(1.5, caret_color.gamma_multiply(look.opacity)));
             }
             if focused {
                 ui.ctx().request_repaint_after(std::time::Duration::from_millis(530 - (since as u64 % 530)));
