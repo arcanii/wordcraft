@@ -20,7 +20,7 @@ logged in this file instead.
 |---|---|
 | Fork `main` is based on | upstream `e4b7d15` (WordCraft 0.5.0), 2026-10-11 |
 | Last merge of upstream | none yet |
-| Fork carries | 1 change upstream lacks (below) |
+| Fork carries | 2 changes upstream lacks (below) |
 
 ## What the fork carries
 
@@ -29,7 +29,8 @@ merged; delete the row once a merge of upstream brings it back.
 
 | Change | Where | Upstream |
 |---|---|---|
-| **Caret glide:** the caret slides to its new place instead of jumping, like the caret in Word for Windows. First version; the timing is estimated, not yet measured against Word. | `crates/ui-egui/src/aniefork/caret.rs`, two hooks in `canvas.rs` (commit "M14: caret glide (aniefork)") | Not offered |
+| **Caret glide:** the caret slides to its new place instead of jumping, like the caret in Word for Windows. First version; the timing is estimated, not yet measured against Word. | `crates/ui-egui/src/aniefork/caret.rs`, two hooks in `canvas.rs` (`520f021`) | Not offered |
+| **The paste-picture test passes on Windows.** `paste_inserts_clipboard_pixels` gave `names_picture_files` the path `/tmp/b.JPG`, which Windows doesn't call absolute, so the test failed there. It now uses the system's own absolute path, and on Windows also checks drive, server and `file:///C:/…` forms. Test only: the app behaves as before. | the tests in `crates/ui-egui/src/paste_picture.rs` | Not offered; upstream has the same failure, so it is a candidate for a pull request |
 
 ## Caret glide
 
@@ -96,10 +97,19 @@ The workspace says `rust-version = "1.90"`, but egui 0.36 needs Rust 1.95 or new
 toolchain fails with a dependency error (pdfcraft's fork found the same and carries a fix).
 `cargo xtask ci` also needs the `wasm32-unknown-unknown` target.
 
+Upstream runs its test suite on FreeBSD only (`.github/workflows/freebsd.yml`), so a test that
+fails on Windows goes unnoticed there. The fork is developed on Windows: run the whole gate, and
+don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends, which follow it).
+
 ## Log
 
 Newest first.
 
+- **2026-10-11 (M2, paste-picture test on Windows):** `cargo xtask ci` failed on Windows at one
+  upstream test: `paste_inserts_clipboard_pixels` expected the text `/tmp/b.JPG` to name a copied
+  file, but a path needs a drive or a server to be absolute on Windows. The test now uses each
+  system's own absolute path and covers the Windows forms. It was the only test in the workspace
+  that failed on Windows; the gate is green (1,078 tests).
 - **2026-10-11 (M14, caret glide):** The caret glides to its new place instead of jumping, like
   Word's on Windows: 0.12 s, decelerating, from wherever it is drawn (so typing reads as one
   motion), staying lit on the way. View changes, scrolling and off-screen jumps don't glide. All of
