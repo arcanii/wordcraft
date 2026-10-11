@@ -125,6 +125,8 @@ pub struct UiState {
     /// View › Switch Modes: show pages dark (white text on black), kept between runs. Only the
     /// pages: the interface follows [`UiState::theme`] (#312).
     pub dark_page: bool,
+    /// The fork's own settings (aniefork).
+    pub aniefork: aniefork::Prefs,
 }
 
 impl Default for UiState {
@@ -149,6 +151,7 @@ impl Default for UiState {
             keytips: crate::keytips::Phase::Off,
             alt_chord_used: false,
             dark_page: false,
+            aniefork: aniefork::Prefs::default(),
         }
     }
 }
@@ -657,7 +660,8 @@ impl WordApp {
                 self.canvas.open_url = Some("https://discord.gg/artcraft".into());
                 json!({})
             }
-            _ => return None,
+            // The fork's commands (aniefork).
+            _ => return aniefork::ui_command(self, id, p),
         }))
     }
 

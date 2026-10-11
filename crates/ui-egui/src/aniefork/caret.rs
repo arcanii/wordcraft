@@ -19,9 +19,10 @@
 //! scrolling, another document), one that wasn't drawn the frame before (a selection, the canvas
 //! unfocused), and moves that start or end off screen. Our choice; Word wasn't measured there.
 //!
-//! With animations off (egui's `animation_time` at 0, as in the headless test harness, or
-//! `WORDCRAFT_CARET_GLIDE_MS=0`) the caret jumps and blinks hard, as it does upstream. The
-//! variable also sets the duration, for looking at the motion slowed down.
+//! With animations off the caret jumps and blinks hard, as it does upstream: File ▸ Options ▸
+//! Animation (the `ui.caretAnimation` command) turns them off, and so do egui's `animation_time`
+//! at 0 (the headless test harness) and `WORDCRAFT_CARET_GLIDE_MS=0`. The variable also sets the
+//! duration, for looking at the motion slowed down.
 //!
 //! The glide runs in content space (screen points from the top-left of the scrolled content), so
 //! scrolling under a moving caret doesn't bend its path.
@@ -347,8 +348,9 @@ fn view_key(app: &WordApp, geo: &Geometry) -> u64 {
 /// hard blink says. Returns where and how strongly to draw it. `content_origin` is the scrolled
 /// content's top-left on screen.
 pub fn look(app: &WordApp, ui: &Ui, content_origin: Pos2, geo: &Geometry, target: Bar, shown: bool, since_ms: f64, on: bool) -> Look {
-    // egui's own switch for "no animations": the caret jumps and blinks hard, as upstream.
-    if ui.style().animation_time <= 0.0 || glide_secs() <= 0.0 {
+    // Turned off in Options, or egui's own switch for "no animations": the caret jumps and blinks
+    // hard, as upstream.
+    if !app.ui.aniefork.caret_animation || ui.style().animation_time <= 0.0 || glide_secs() <= 0.0 {
         ui.ctx().data_mut(|d| d.get_temp_mut_or_default::<CaretGlide>(state_id()).reset());
         return Look { bar: target, opacity: if on { 1.0 } else { 0.0 }, moving: false };
     }
@@ -854,5 +856,19 @@ mod tests {
             assert!(!state(&h.ctx).is_gliding());
         }
         assert!(!near(state(&h.ctx).drawn().unwrap(), end));
+        // Turned off in Options: the caret jumps, as upstream's does.
+        h.state_mut().run("ui.caretAnimation", json!({"value": false})).unwrap();
+        h.step();
+        assert!(state(&h.ctx).drawn().is_none(), "the animation stands down");
+        h.event(key(egui::Key::Home));
+        for _ in 0..3 {
+            h.step();
+            assert!(!state(&h.ctx).is_gliding());
+        }
+        assert_eq!(h.state().session.sel.focus.off, 0, "Home still moved the caret");
+        // And on again.
+        h.state_mut().run("ui.caretAnimation", json!({"value": true})).unwrap();
+        h.step();
+        assert!(state(&h.ctx).drawn().is_some());
     }
 }

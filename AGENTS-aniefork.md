@@ -21,7 +21,13 @@ the start of a session. The sister fork arcanii/pdfcraft follows the same rules.
   listed in `ROADMAP-aniefork.md`, so a merge conflict is settled by taking upstream's code and
   putting the hook back.
 - **State the UI needs between frames** lives in the fork's module (egui's temporary data, keyed by
-  an `aniefork.*` id) rather than in new fields on upstream's structs.
+  an `aniefork.*` id) rather than in new fields on upstream's structs. **Settings that are saved**
+  go in `aniefork::Prefs`, the one field the fork has in `UiState`.
+- **Interface text the fork adds** is translated in the fork's own table
+  (`crates/ui-egui/src/aniefork/strings.rs`, looked up with `aniefork::strings::t`), into every
+  interface language, never in upstream's catalogs (`i18n/*.tsv` must all hold the same entries,
+  and upstream changes them constantly). Translate from the meaning, with the words upstream's
+  catalogs already use; never from Microsoft's or another product's localisation.
 - **A branch meant as an upstream pull request** follows upstream's rules, its progress documents
   included. Cut it from `upstream/main`, not from the fork's `main`.
 - **Syncing with upstream:** `ROADMAP-aniefork.md` lists the steps and what can still conflict.
