@@ -30,7 +30,7 @@ merged; delete the row once a merge of upstream brings it back.
 | Change | Where | Upstream |
 |---|---|---|
 | **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Offered 2026-10-11: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)**, rewritten in upstream's style (below). When it lands and a merge of upstream brings it back, remove the `aniefork` version and its hooks |
-| **The paste-picture test passes on Windows.** `paste_inserts_clipboard_pixels` gave `names_picture_files` the path `/tmp/b.JPG`, which Windows doesn't call absolute, so the test failed there. It now uses the system's own absolute path, and on Windows also checks drive, server and `file:///C:/…` forms. Test only: the app behaves as before. | the tests in `crates/ui-egui/src/paste_picture.rs` | Not offered; upstream has the same failure, so it is a candidate for a pull request |
+| **The paste-picture test passes on Windows.** `paste_inserts_clipboard_pixels` gave `names_picture_files` the path `/tmp/b.JPG`, which Windows doesn't call absolute, so the test failed there. It now uses the system's own absolute path, and on Windows also checks drive, server and `file:///C:/…` forms. Test only: the app behaves as before. | the tests in `crates/ui-egui/src/paste_picture.rs` | **Offered 2026-10-11: [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571)** (the same test, on its own branch). When it lands and a merge of upstream brings it back, this row goes |
 
 ## The caret: Word's glide and fade
 
@@ -141,8 +141,8 @@ After a merge, run `cargo xtask ci` before committing it, and update the tables 
 
 Only when the owner asks for it, one topic per pull request. The fork's version of a feature is
 not what upstream gets: a pull request is the feature rewritten the way upstream would have
-written it. How #570 (the caret) was made, following the sister fork gridcraft
-(storytold/gridcraft#265, #266):
+written it. How #570 (the caret) and #571 (the Windows test fix) were made, following the sister
+fork gridcraft (storytold/gridcraft#265, #266):
 
 - **A branch cut from `upstream/main`, in a separate worktree** (never by switching this
   checkout): `git worktree add -b <branch> <local dir> upstream/main`. A worktree on a local disk
@@ -161,8 +161,8 @@ written it. How #570 (the caret) was made, following the sister fork gridcraft
   behaviour taken from Word, how it was measured), Not in this pull request, and Checks, saying
   honestly which checks ran locally. Pushed to `origin` and opened with
   `gh pr create --repo storytold/wordcraft --base main --head arcanii:<branch>`.
-- **Checks on Windows:** `cargo xtask ci` stops at `paste_inserts_clipboard_pixels`, which upstream
-  still has (the fork carries the fix, above). Run the rest with
+- **Checks on Windows:** until #571 lands, `cargo xtask ci` stops at
+  `paste_inserts_clipboard_pixels` on a branch cut from upstream. Run the rest with
   `cargo test --workspace -- --skip paste_inserts_clipboard_pixels`, then `cargo xtask assets`,
   `layers` and `wasm`, and the ignored translation audit
   (`cargo test -p wordcraft-ui-egui untranslated_interface_text -- --ignored`) when interface text
@@ -182,6 +182,11 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-11 (the Windows test fix offered upstream):** Pull request
+  [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571), from the branch
+  `paste-picture-test-windows` cut from upstream `1d4f741`: the same change to
+  `paste_inserts_clipboard_pixels` the fork carries, alone. Locally: fmt and the crate's 159 tests
+  pass. #570's description points to it.
 - **2026-10-11 (the caret offered upstream):** Pull request
   [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570), from the branch
   `caret-glide` cut from upstream `1d4f741`: the caret's glide and fading blink and the Options ›
