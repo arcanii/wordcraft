@@ -82,6 +82,12 @@ need a modifier; moves that start or end off screen; input methods; a click whil
   `ui.caretAnimation` (`{"value": true|false}` sets it, no value reads it; the reply is
   `{"caretAnimation": …}`), and it is saved with the interface settings (`ui.json`, under
   `aniefork`), so builds without the fork ignore it.
+- **Every platform the same.** The switch is in the application, not tied to an operating
+  system's own animation setting, because WordCraft runs on macOS, Windows, Linux, BSD and the
+  web and the option has to mean the same thing on each (the owner's decision, 2026-10-11). The
+  caret code is plain Rust and egui with nothing platform-specific in it, and the wasm build is
+  part of the gate. The desktop apps save the setting; the web build doesn't save any interface
+  setting between visits (upstream's gap, the same for the theme and the language).
 - **Other off switches:** egui's animations off (`style.animation_time == 0`), which the headless
   test harness (`egui_kittest`, so `ui_shot` too) does, so scripted screenshots never catch a
   caret in flight; and `WORDCRAFT_CARET_GLIDE_MS=0`. Any other value of that variable sets the
@@ -95,8 +101,6 @@ need a modifier; moves that start or end off screen; input methods; a click whil
   and on the Options page, and every text translated and covered by the interface fonts).
 
 ### Open
-- Following the system's reduced-motion setting (Windows: Settings › Accessibility › Visual
-  effects › Animation effects) when the setting has never been touched.
 - The cases listed under "Not measured".
 - A native speaker's read of the nine translations.
 
@@ -147,6 +151,9 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-11 (decision, Options › Animation):** The switch for the caret's animation stays in
+  the application and does not follow an operating system's animation setting: it has to work
+  the same on every platform. The open item to follow Windows' setting was dropped.
 - **2026-10-11 (M10, Options › Animation):** The caret's animation can be turned off: File ›
   Options has an Animation section with "Animate the caret (it glides and fades)", also the
   command `ui.caretAnimation`, saved with the interface settings. The section's three texts are
