@@ -13,6 +13,7 @@ macro_rules! tl {
     };
 }
 
+pub mod aniefork;
 pub mod backstage;
 pub mod canvas;
 pub mod chrome;
