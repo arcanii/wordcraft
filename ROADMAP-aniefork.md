@@ -29,7 +29,7 @@ merged; delete the row once a merge of upstream brings it back.
 
 | Change | Where | Upstream |
 |---|---|---|
-| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, then the Options commit) | Not offered |
+| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Offered 2026-10-11: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)**, rewritten in upstream's style (below). When it lands and a merge of upstream brings it back, remove the `aniefork` version and its hooks |
 | **The paste-picture test passes on Windows.** `paste_inserts_clipboard_pixels` gave `names_picture_files` the path `/tmp/b.JPG`, which Windows doesn't call absolute, so the test failed there. It now uses the system's own absolute path, and on Windows also checks drive, server and `file:///C:/…` forms. Test only: the app behaves as before. | the tests in `crates/ui-egui/src/paste_picture.rs` | Not offered; upstream has the same failure, so it is a candidate for a pull request |
 
 ## The caret: Word's glide and fade
@@ -137,6 +137,37 @@ conflict:
 
 After a merge, run `cargo xtask ci` before committing it, and update the tables above.
 
+## Sending changes upstream
+
+Only when the owner asks for it, one topic per pull request. The fork's version of a feature is
+not what upstream gets: a pull request is the feature rewritten the way upstream would have
+written it. How #570 (the caret) was made, following the sister fork gridcraft
+(storytold/gridcraft#265, #266):
+
+- **A branch cut from `upstream/main`, in a separate worktree** (never by switching this
+  checkout): `git worktree add -b <branch> <local dir> upstream/main`. A worktree on a local disk
+  whose repository is on the network share needs
+  `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0=<worktree>` in the
+  environment of every git command (nothing is written to the global configuration).
+- **Upstream's style, no `aniefork` anywhere:** a module of its own in the crate
+  (`caret_glide.rs`), settings as plain fields of `UiState`, commands in `ui_command`, interface
+  text through `tl!` with an entry appended to every catalog (they must all hold the same keys),
+  and upstream's documents updated as its `AGENTS.md` asks (a row in `ROADMAP.md`, a row and a
+  revision line in `docs/ui-parity.md`, the command in `docs/control-protocol.md`).
+- **Contributor names:** `[people.arcanii]` in `contributors/people.toml`, as its own commit (the
+  same entry as in gridcraft). It is in #570; a later branch cut before #570 lands would not have
+  it yet.
+- **The pull request:** title `Area: what changed`; body with What it does, How (and, for
+  behaviour taken from Word, how it was measured), Not in this pull request, and Checks, saying
+  honestly which checks ran locally. Pushed to `origin` and opened with
+  `gh pr create --repo storytold/wordcraft --base main --head arcanii:<branch>`.
+- **Checks on Windows:** `cargo xtask ci` stops at `paste_inserts_clipboard_pixels`, which upstream
+  still has (the fork carries the fix, above). Run the rest with
+  `cargo test --workspace -- --skip paste_inserts_clipboard_pixels`, then `cargo xtask assets`,
+  `layers` and `wasm`, and the ignored translation audit
+  (`cargo test -p wordcraft-ui-egui untranslated_interface_text -- --ignored`) when interface text
+  was added.
+
 ## Building
 
 The workspace says `rust-version = "1.90"`, but egui 0.36 needs Rust 1.95 or newer; an older
@@ -151,6 +182,14 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-11 (the caret offered upstream):** Pull request
+  [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570), from the branch
+  `caret-glide` cut from upstream `1d4f741`: the caret's glide and fading blink and the Options ›
+  Animation switch, rewritten in upstream's style (`caret_glide.rs`, a plain `caret_animation`
+  setting, entries in the nine catalogs, upstream's documents), with the measurement method and
+  numbers in its description. Locally: fmt, clippy, 1,097 tests, the translation audit, assets,
+  layers and wasm pass; the one test that fails on Windows is upstream's own. The fork keeps its
+  `aniefork` version until upstream's lands.
 - **2026-10-11 (decision, Options › Animation):** The switch for the caret's animation stays in
   the application and does not follow an operating system's animation setting: it has to work
   the same on every platform. The open item to follow Windows' setting was dropped.
