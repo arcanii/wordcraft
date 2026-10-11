@@ -29,8 +29,8 @@ merged; delete the row once a merge of upstream brings it back.
 
 | Change | Where | Upstream |
 |---|---|---|
-| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Offered 2026-10-11: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)**, rewritten in upstream's style (below). When it lands and a merge of upstream brings it back, remove the `aniefork` version and its hooks |
-| **The paste-picture test passes on Windows.** `paste_inserts_clipboard_pixels` gave `names_picture_files` the path `/tmp/b.JPG`, which Windows doesn't call absolute, so the test failed there. It now uses the system's own absolute path, and on Windows also checks drive, server and `file:///C:/…` forms. Test only: the app behaves as before. | the tests in `crates/ui-egui/src/paste_picture.rs` | **Offered 2026-10-11: [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571)** (the same test, on its own branch). When it lands and a merge of upstream brings it back, this row goes |
+| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Offered 2026-10-11: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)**, rewritten in upstream's style (below). Upstream has since rebuilt File › Options as panes, so there the switch is in Options › Advanced › Animation. When it lands and a merge of upstream brings it back, remove the `aniefork` version and its hooks |
+| **The paste-picture test passes on Windows.** `paste_inserts_clipboard_pixels` gave `names_picture_files` the path `/tmp/b.JPG`, which Windows doesn't call absolute, so the test failed there. It now uses the system's own absolute path, and on Windows also checks drive, server and `file:///C:/…` forms. Test only: the app behaves as before. | the tests in `crates/ui-egui/src/paste_picture.rs` | Offered 2026-10-11 as [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571), **closed the same day without merging: upstream's main already had its own fix** for the test. At the next merge of upstream, take upstream's version of the test and delete this row |
 
 ## The caret: Word's glide and fade
 
@@ -161,12 +161,22 @@ fork gridcraft (storytold/gridcraft#265, #266):
   behaviour taken from Word, how it was measured), Not in this pull request, and Checks, saying
   honestly which checks ran locally. Pushed to `origin` and opened with
   `gh pr create --repo storytold/wordcraft --base main --head arcanii:<branch>`.
-- **Checks on Windows:** until #571 lands, `cargo xtask ci` stops at
-  `paste_inserts_clipboard_pixels` on a branch cut from upstream. Run the rest with
-  `cargo test --workspace -- --skip paste_inserts_clipboard_pixels`, then `cargo xtask assets`,
-  `layers` and `wasm`, and the ignored translation audit
-  (`cargo test -p wordcraft-ui-egui untranslated_interface_text -- --ignored`) when interface text
-  was added.
+- **Checks on Windows:** upstream has no workflow that runs clippy, so `cargo xtask ci` can stop
+  on upstream's own code. On upstream `2e5ecb9` with Rust 1.99 it stops at clippy's
+  `large_enum_variant` in `crates/docx/src/read/story.rs`. When the stop is not in the pull
+  request's files, run the steps one by one with only that lint allowed
+  (`cargo clippy --workspace --all-targets -- -D warnings -A clippy::large_enum_variant`,
+  `cargo test --workspace`, `cargo xtask assets`, `layers`, `wasm`) and say so in the pull
+  request. Run the ignored translation audit
+  (`cargo test -p wordcraft-ui-egui untranslated_interface_text -- --ignored --nocapture`) when
+  interface text was added, and read what it lists: on `2e5ecb9` it reports two of upstream's
+  Mailings texts. (`paste_inserts_clipboard_pixels`, which used to fail on Windows, passes on
+  upstream since 2026-10-11.)
+- **After it is open:** a maintainer may push to the branch (echelon merged main into #570 and
+  added the strings for two new catalogs). Fetch `origin <branch>` and fast-forward before
+  touching it. When main moves and the pull request conflicts, merge `upstream/main` into the
+  branch and push; never rebase or force-push. A new catalog upstream means the feature's strings
+  are missing from it: add them in the same merge.
 
 ## Building
 
@@ -182,6 +192,16 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-12 (#570 merged with main again; #571 closed):** Upstream's main moved 30 commits and
+  #570 conflicted in 15 files. Before that, echelon (a maintainer) had merged main into the
+  branch once (`9684f9b`) and added the three strings to the new Turkish and Russian catalogs,
+  leaving the default (animation on) to the maintainer. This merge (`75b991f`): upstream rebuilt
+  File › Options as panes in `options.rs` (#485), so the Animation section and its test moved from
+  `backstage.rs` to the Advanced pane, between Display and Customize; the eleven catalogs,
+  `lib.rs` and the two documents kept both sides. Locally: fmt, clippy with one upstream lint
+  allowed (see "Checks on Windows"), 1,311 tests, assets, layers and wasm pass; the Advanced pane
+  looked at in English and Turkish with `ui_shot`. #571 was closed without merging: main already
+  had its own fix for the test.
 - **2026-10-11 (the Windows test fix offered upstream):** Pull request
   [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571), from the branch
   `paste-picture-test-windows` cut from upstream `1d4f741`: the same change to
