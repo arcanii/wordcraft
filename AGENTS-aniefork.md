@@ -6,6 +6,11 @@ everything in them still applies (never crash, no Microsoft assets, clean room, 
 This file says where the fork differs. Read it and [`ROADMAP-aniefork.md`](ROADMAP-aniefork.md) at
 the start of a session. The sister fork arcanii/pdfcraft follows the same rules.
 
+At present the fork carries no code of its own: its one feature, the caret's glide, went upstream
+(storytold/wordcraft#570) and the fork's copy was removed. The rules below are for the next
+fork-only change; `git show 2648505:crates/ui-egui/src/aniefork/mod.rs` and its neighbours show
+how the module, its hooks, its settings and its string table were laid out.
+
 - **Log fork work in `ROADMAP-aniefork.md`, not in upstream's documents.** `ROADMAP.md`, `docs/`,
   `CLAUDE.md` and `AGENTS.md` stay identical to upstream so that merging upstream doesn't conflict.
   Where `CLAUDE.md` says to update the roadmap and parity documents when work lands, add a line to
@@ -22,7 +27,7 @@ the start of a session. The sister fork arcanii/pdfcraft follows the same rules.
   putting the hook back.
 - **State the UI needs between frames** lives in the fork's module (egui's temporary data, keyed by
   an `aniefork.*` id) rather than in new fields on upstream's structs. **Settings that are saved**
-  go in `aniefork::Prefs`, the one field the fork has in `UiState`.
+  go in an `aniefork::Prefs` struct, the one field the fork adds to `UiState`.
 - **Interface text the fork adds** is translated in the fork's own table
   (`crates/ui-egui/src/aniefork/strings.rs`, looked up with `aniefork::strings::t`), into every
   interface language, never in upstream's catalogs (`i18n/*.tsv` must all hold the same entries,

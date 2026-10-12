@@ -18,23 +18,31 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `0db810d` (WordCraft 0.5.0 and 77 commits after it), 2026-10-12 |
-| Last merge of upstream | 2026-10-12: `0db810d`, 77 commits, the first merge since the fork began at `e4b7d15` |
-| Fork carries | 1 change upstream lacks (below) |
+| Fork `main` is based on | upstream `ad8c264`, 2026-10-12 |
+| Last merge of upstream | 2026-10-12: `ad8c264`, 49 commits (the second merge; the first, `0db810d`, was the same day) |
+| Fork carries | no code: only this file and `AGENTS-aniefork.md` differ from upstream |
 
 ## What the fork carries
 
-Changes in the fork that upstream does not have. Update the last column when one is offered or
-merged; delete the row once a merge of upstream brings it back.
+Changes in the fork that upstream does not have. Add a row when the fork gains one, update its
+last column when it is offered or merged, and delete the row once a merge of upstream brings it
+back.
 
-| Change | Where | Upstream |
+Nothing at present: the fork's code is upstream's.
+
+What the fork carried, and how each ended:
+
+| Change | In the fork | Upstream |
 |---|---|---|
-| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Advanced › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Merged upstream 2026-10-12: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)** (merge commit `cbd9291`, by echelon; on by default, in Options › Advanced › Animation), rewritten in upstream's style (below). **Next:** merge upstream, then remove the `aniefork` version and its hooks, which upstream's `caret_glide.rs` replaces; the fork's saved setting (`aniefork.caretAnimation` in `ui.json`) is not read by upstream's (`caretAnimation`) |
+| **The caret glides and fades like Word's on Windows** (100 ms along Word's curve for keys and typing, a fading blink, a switch in Options) | 2026-10-11 to 2026-10-12, in `crates/ui-egui/src/aniefork/` with hooks in `lib.rs`, `canvas.rs` and the Options page (last present in `2648505`) | **Merged 2026-10-12 as [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)** (`cbd9291`); upstream's is `crates/ui-egui/src/caret_glide.rs`. The fork's copy was removed at the next merge of upstream |
+| **The paste-picture test passes on Windows** | 2026-10-11 to 2026-10-12, in the tests of `crates/ui-egui/src/paste_picture.rs` | Offered as [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571) and closed unmerged: upstream had fixed the test itself. Upstream's version was taken at the first merge |
 
 ## The caret: Word's glide and fade
 
-Upstream's caret jumps to its new place and blinks hard on and off. The fork's moves and blinks
-the way Word's does on Windows.
+WordCraft's caret used to jump to its new place and blink hard on and off. Since
+storytold/wordcraft#570, which came from this fork, it moves and blinks the way Word's does on
+Windows. This section is the record of how Word was measured and what was built from it; the code
+is upstream's `crates/ui-egui/src/caret_glide.rs`.
 
 ### What Word does (measured 2026-10-11)
 
@@ -77,27 +85,30 @@ need a modifier; moves that start or end off screen; input methods; a click whil
   resized window, scrolling, another document), when the caret wasn't drawn the frame before (a
   selection, the canvas without focus), or when a move starts or ends off screen.
 - **The setting:** File › Options › Advanced › Animation › "Animate the caret (it glides and
-  fades)", on by default. Off, the caret jumps and blinks hard, exactly as upstream. It is the command
+  fades)", on by default. Off, the caret jumps and blinks on and off. It is the command
   `ui.caretAnimation` (`{"value": true|false}` sets it, no value reads it; the reply is
-  `{"caretAnimation": …}`), and it is saved with the interface settings (`ui.json`, under
-  `aniefork`), so builds without the fork ignore it.
-- **Every platform the same.** The switch is in the application, not tied to an operating
-  system's own animation setting, because WordCraft runs on macOS, Windows, Linux, BSD and the
-  web and the option has to mean the same thing on each (the owner's decision, 2026-10-11). The
-  caret code is plain Rust and egui with nothing platform-specific in it, and the wasm build is
-  part of the gate. The desktop apps save the setting; the web build doesn't save any interface
-  setting between visits (upstream's gap, the same for the theme and the language).
+  `{"caretAnimation": …}`), saved in `ui.json` as `caretAnimation`. The fork's own builds of 11
+  and 12 October saved it as `aniefork.caretAnimation`, which upstream's does not read: a switch
+  turned off in one of those builds is on again.
+- **Every platform the same.** The owner decided on 2026-10-11 that the caret's switch is in the
+  application and means the same on macOS, Windows, Linux, BSD and the web, and #570 was offered
+  that way. Upstream has since added a general setting above it (#791): File › Options ›
+  Accessibility › Animation effects, with Use system setting (the default), On and Off. The caret
+  follows that too, so under "Use system setting" a system with animation effects turned off
+  stops the glide and the fades; On makes WordCraft's animations independent of the system. The
+  desktop apps save both settings; the web build doesn't save any interface setting between
+  visits (upstream's gap, the same for the theme and the language).
 - **Other off switches:** egui's animations off (`style.animation_time == 0`), which the headless
   test harness (`egui_kittest`, so `ui_shot` too) does, so scripted screenshots never catch a
   caret in flight; and `WORDCRAFT_CARET_GLIDE_MS=0`. Any other value of that variable sets the
   glide and fade time (up to 10000), for looking at the motion slowed down.
-- **The section's text** is translated into every interface language in the fork's own table
-  (`aniefork/strings.rs`), not in upstream's catalogs. Nine translations are ours and haven't
-  been read by native speakers; the Turkish and Russian ones are echelon's, written for #570.
-- **Tests:** `cargo test -p wordcraft-ui-egui aniefork` (Word's measured frames against the curve,
+- **The section's text** is in upstream's catalogs, in every interface language. Nine
+  translations are ours and haven't been read by native speakers; the Turkish and Russian ones
+  are echelon's, written when #570 was reviewed.
+- **Tests:** `cargo test -p wordcraft-ui-egui caret` (Word's measured frames against the curve,
   frame-rate independence, the second-key rule, clicks and scripts, the blink's fades, view
-  changes, hostile numbers, a key gliding the caret in the real canvas, the setting as a command
-  and on the Options page, and every text translated and covered by the interface fonts).
+  changes, hostile numbers, a key gliding the caret in the real canvas, and the setting as a
+  command), and `advanced_animation_turns_the_caret_animation_off_and_on` in `options.rs`.
 
 ### Open
 - The cases listed under "Not measured".
@@ -105,17 +116,9 @@ need a modifier; moves that start or end off screen; input methods; a click whil
 
 ## Hooks in upstream files
 
-Everything else the fork adds is in files of its own. After merging upstream, check these are
-still there:
-
-| File | Hook |
-|---|---|
-| `crates/ui-egui/src/lib.rs` | `pub mod aniefork;` |
-| `crates/ui-egui/src/lib.rs`, `UiState` | the field `pub aniefork: aniefork::Prefs` (last in the struct) and `aniefork: aniefork::Prefs::default()` in its `Default` |
-| `crates/ui-egui/src/lib.rs`, `ui_command` | the match's last arm is `_ => return aniefork::ui_command(self, id, p)` (upstream: `_ => return None`) |
-| `crates/ui-egui/src/options.rs`, `advanced` | `crate::aniefork::options::section(app, ui);` after the Display section's grid, just before the space above the Customize section |
-| `crates/ui-egui/src/canvas.rs`, `show`, the equation caret | `crate::aniefork::caret::look(…)` gives the bar and its opacity; it is drawn at that opacity (`gamma_multiply`) when the opacity is above 0 |
-| `crates/ui-egui/src/canvas.rs`, `show`, the text caret | the bar is computed first, passed through `crate::aniefork::caret::look(…)` with `since` and `on`, and drawn at the returned opacity |
+None at present. When the fork carries code again, list every hook here (the file, where in it,
+and what the hook is), so that after a merge of upstream they can be checked one by one. The last
+table, for the caret, is in `git show 2648505:ROADMAP-aniefork.md`.
 
 ## Syncing with upstream
 
@@ -124,19 +127,21 @@ git fetch upstream
 git merge upstream/main
 ```
 
-Sync often: upstream lands dozens of commits a day, and small merges are easy. What can still
-conflict:
+Sync often: upstream lands dozens of commits a day, and small merges are easy. While the fork
+carries no code a merge cannot conflict, since this file and `AGENTS-aniefork.md` are the fork's
+alone. When it carries code again, what can conflict:
 
-- **The hooks above**, when upstream edits the code around them: the caret drawing in
-  `canvas.rs`, the end of `UiState` and of `ui_command` in `lib.rs` (upstream adds its own fields
-  and commands there), the Advanced pane in `options.rs`. Take upstream's code and put the hook
-  back. When upstream moves the code a hook is in (the Options page went from `backstage.rs` to
-  `options.rs` in #485), the hook follows it.
-- **Interface strings:** none in upstream's catalogs. The fork's texts are in
-  `aniefork/strings.rs`; when upstream adds an interface language,
-  `every_fork_text_is_translated_into_every_language` fails until it is added there (Turkish
-  and Russian were added at the first merge).
+- **Hooks in upstream files**, when upstream edits the code around them. Take upstream's code and
+  put the hook back. When upstream moves the code a hook is in (the Options page went from
+  `backstage.rs` to `options.rs` in #485), the hook follows it.
+- **Interface strings:** none in upstream's catalogs. The fork's texts go in a table of the
+  fork's own, with a test that every text has every interface language; when upstream adds a
+  language, that test fails until the language is added to the table.
 - **`ATTRIBUTION.md`:** when both sides add assets (the fork has none so far).
+- **A feature upstream has taken:** once a pull request made from fork work is merged upstream,
+  merge upstream, take upstream's version of each hooked file
+  (`git checkout upstream/main -- <file>`), delete the fork's copy, and check that
+  `git diff upstream/main --stat` lists only the fork's own files.
 
 After a merge, run `cargo xtask ci` before committing it, and update the tables above.
 
@@ -158,8 +163,7 @@ fork gridcraft (storytold/gridcraft#265, #266):
   and upstream's documents updated as its `AGENTS.md` asks (a row in `ROADMAP.md`, a row and a
   revision line in `docs/ui-parity.md`, the command in `docs/control-protocol.md`).
 - **Contributor names:** `[people.arcanii]` in `contributors/people.toml`, as its own commit (the
-  same entry as in gridcraft). It is in #570; a later branch cut before #570 lands would not have
-  it yet.
+  same entry as in gridcraft). It landed with #570, so a branch cut from upstream's main has it.
 - **The pull request:** title `Area: what changed`; body with What it does, How (and, for
   behaviour taken from Word, how it was measured), Not in this pull request, and Checks, saying
   honestly which checks ran locally. Pushed to `origin` and opened with
@@ -213,6 +217,16 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-12 (the fork's caret copy removed; the fork carries no code):** Merged upstream
+  `ad8c264` (49 commits, #570's merge among them) and removed the fork's own caret:
+  `crates/ui-egui/src/aniefork/` deleted, and `lib.rs`, `canvas.rs` and `options.rs` taken from
+  upstream, so the hooks are gone. Only this file and `AGENTS-aniefork.md` now differ from
+  upstream. Before deleting, the fork's `caret.rs` was compared with upstream's
+  `caret_glide.rs`: the same code, and upstream's also follows its new Animation effects
+  setting (#791, see "Every platform the same" above). The saved setting's key changed from
+  `aniefork.caretAnimation` to `caretAnimation`. The worktrees and local branches of #570 and
+  #571 were removed; both branches remain on `origin`. `cargo xtask ci` passes on the fork's
+  tree (1,523 tests).
 - **2026-10-12 (#570 merged upstream):** echelon merged
   [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570) into upstream's
   main (`cbd9291`) after one more merge of main on the branch. It landed as offered: the caret
