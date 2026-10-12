@@ -186,7 +186,8 @@ fork gridcraft (storytold/gridcraft#265, #266):
   progress log and of the revision history in `docs/ui-parity.md`. A pull request whose row is
   also at the top conflicts with every commit upstream lands. Put the row three or four rows
   down, among rows of the same date; rows added above it then merge cleanly (#570 stopped
-  conflicting once its rows were moved).
+  conflicting there once its rows were moved). The same goes for `contributors/people.toml`,
+  where new entries land at or near the end: put the entry among the older ones.
 
 ## Building
 
@@ -209,6 +210,11 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-12 (#570: two more merges of main):** Both conflicts were in
+  `contributors/people.toml`, where upstream added a contributor in the place #570's entry was
+  (`49c9408`, then `710d450`, which moved the entry up among the older ones). The log tables
+  merged cleanly both times. Checked with a build cache of the worktree's own: fmt, clippy with
+  nothing allowed, the interface crate's tests, assets, layers and wasm.
 - **2026-10-12 (first merge of upstream):** Merged upstream `0db810d` into the fork's `main`:
   77 commits, among them File › Options as panes, Outline view, vertical text for sections, the
   Customize dialogs and the Turkish and Russian interface languages. Three files conflicted.
