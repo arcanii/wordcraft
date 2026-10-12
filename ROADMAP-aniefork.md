@@ -177,6 +177,11 @@ fork gridcraft (storytold/gridcraft#265, #266):
   touching it. When main moves and the pull request conflicts, merge `upstream/main` into the
   branch and push; never rebase or force-push. A new catalog upstream means the feature's strings
   are missing from it: add them in the same merge.
+- **Rows in upstream's log tables:** upstream adds each new row at the top of `ROADMAP.md`'s
+  progress log and of the revision history in `docs/ui-parity.md`. A pull request whose row is
+  also at the top conflicts with every commit upstream lands. Put the row three or four rows
+  down, among rows of the same date; rows added above it then merge cleanly (#570 stopped
+  conflicting once its rows were moved).
 
 ## Building
 
@@ -201,7 +206,11 @@ Newest first.
   `lib.rs` and the two documents kept both sides. Locally: fmt, clippy with one upstream lint
   allowed (see "Checks on Windows"), 1,311 tests, assets, layers and wasm pass; the Advanced pane
   looked at in English and Turkish with `ui_shot`. #571 was closed without merging: main already
-  had its own fix for the test.
+  had its own fix for the test. Later the same day main moved three more commits and #570
+  conflicted again, in `ROADMAP.md` only (both sides had added a row at the top of the progress
+  log). Merged twice more (`008ac61`, `5eb7dab`), with #570's rows in the two log tables moved
+  three rows down; the second of those merges had no conflicts. Locally each time: fmt, clippy
+  with the one upstream lint allowed, the interface crate's 212 tests, assets, layers and wasm.
 - **2026-10-11 (the Windows test fix offered upstream):** Pull request
   [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571), from the branch
   `paste-picture-test-windows` cut from upstream `1d4f741`: the same change to
