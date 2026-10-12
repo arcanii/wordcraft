@@ -29,7 +29,7 @@ merged; delete the row once a merge of upstream brings it back.
 
 | Change | Where | Upstream |
 |---|---|---|
-| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Advanced › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Offered 2026-10-11: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)**, rewritten in upstream's style (below). When it lands and a merge of upstream brings it back, remove the `aniefork` version and its hooks |
+| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Advanced › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Merged upstream 2026-10-12: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)** (merge commit `cbd9291`, by echelon; on by default, in Options › Advanced › Animation), rewritten in upstream's style (below). **Next:** merge upstream, then remove the `aniefork` version and its hooks, which upstream's `caret_glide.rs` replaces; the fork's saved setting (`aniefork.caretAnimation` in `ui.json`) is not read by upstream's (`caretAnimation`) |
 
 ## The caret: Word's glide and fade
 
@@ -213,6 +213,11 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-12 (#570 merged upstream):** echelon merged
+  [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570) into upstream's
+  main (`cbd9291`) after one more merge of main on the branch. It landed as offered: the caret
+  glides and fades by default, File › Options › Advanced › Animation turns it off. The fork's
+  own copy (`aniefork/`) is still in place until upstream is merged again.
 - **2026-10-12 (#570: a fifth merge of main):** All eleven catalogs conflicted: upstream's
   new strings landed where #570's three were. Merged as `5dc8fe9`, with #570's strings moved
   next to "Show rulers". Upstream's caret work for complex scripts changed `canvas.rs` around
