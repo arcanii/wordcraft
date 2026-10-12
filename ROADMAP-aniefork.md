@@ -161,11 +161,13 @@ fork gridcraft (storytold/gridcraft#265, #266):
   behaviour taken from Word, how it was measured), Not in this pull request, and Checks, saying
   honestly which checks ran locally. Pushed to `origin` and opened with
   `gh pr create --repo storytold/wordcraft --base main --head arcanii:<branch>`.
-- **Checks on Windows:** upstream has no workflow that runs clippy, so `cargo xtask ci` can stop
-  on upstream's own code. On upstream `2e5ecb9` with Rust 1.99 it stops at clippy's
-  `large_enum_variant` in `crates/docx/src/read/story.rs`. When the stop is not in the pull
-  request's files, run the steps one by one with only that lint allowed
-  (`cargo clippy --workspace --all-targets -- -D warnings -A clippy::large_enum_variant`,
+- **Checks on Windows:** upstream has no workflow that runs clippy (storytold/wordcraft#754 asks
+  for one), so `cargo xtask ci` can stop on upstream's own code. From `2e5ecb9` to `900c0f4` it
+  stopped, with Rust 1.99, at clippy's `large_enum_variant` in `crates/docx/src/read/story.rs`;
+  upstream fixed that itself in storytold/wordcraft#779, and at `850fa05` the clippy step passes
+  again. Before fixing such a stop, fetch upstream and look: it may be gone. When a stop is not in
+  the pull request's files, run the steps one by one with only that lint allowed
+  (`cargo clippy --workspace --all-targets -- -D warnings -A clippy::<the lint>`,
   `cargo test --workspace`, `cargo xtask assets`, `layers`, `wasm`) and say so in the pull
   request. Run the ignored translation audit
   (`cargo test -p wordcraft-ui-egui untranslated_interface_text -- --ignored --nocapture`) when
@@ -197,6 +199,13 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-12 (the DOCX reader's clippy stop: fixed upstream, nothing to send):** The
+  `large_enum_variant` stop met while merging main into #570 was to be offered upstream as a fix
+  of its own. A fetch showed upstream had boxed the variant itself the same day
+  (storytold/wordcraft#779). Checked at upstream `850fa05` with Rust 1.99:
+  `cargo clippy --workspace --all-targets -- -D warnings` passes. No branch or pull request made.
+  #570's branch does not hold that fix yet (its last merge of main is `900c0f4`); it arrives with
+  the next merge of main.
 - **2026-10-12 (#570 merged with main again; #571 closed):** Upstream's main moved 30 commits and
   #570 conflicted in 15 files. Before that, echelon (a maintainer) had merged main into the
   branch once (`9684f9b`) and added the three strings to the new Turkish and Russian catalogs,
