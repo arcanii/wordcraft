@@ -1,4 +1,4 @@
-//! File ▸ Options ▸ Animation: the fork's section of the Options page.
+//! File ▸ Options ▸ Advanced ▸ Animation: the fork's section of the Options page.
 
 use egui::Ui;
 use serde_json::json;
@@ -15,12 +15,14 @@ pub(crate) const CARET_HINT: &str =
 #[cfg(test)]
 pub(crate) const TEXTS: [&str; 3] = [HEADING, CARET, CARET_HINT];
 
-/// The section, drawn between upstream's Display and Agents sections.
+/// The section, drawn in upstream's Advanced pane between its Display and Customize sections,
+/// spaced as that pane spaces its own (`options::section`).
 pub(crate) fn section(app: &mut WordApp, ui: &mut Ui) {
+    ui.add_space(14.0);
     ui.label(egui::RichText::new(t(HEADING)).font(semibold(15.0)));
+    ui.add_space(2.0);
     let mut on = app.ui.aniefork.caret_animation;
     if ui.checkbox(&mut on, t(CARET)).on_hover_text(t(CARET_HINT)).changed() {
         let _ = app.run("ui.caretAnimation", json!({"value": on}));
     }
-    ui.add_space(10.0);
 }

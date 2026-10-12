@@ -5,7 +5,8 @@
 //! here instead and looked up first; anything not in this table goes to upstream's catalog.
 //!
 //! Translated from the meaning of the English text, using the words upstream's catalogs already
-//! use ("caret" is `cursor`, `каретка`, `光标`… there). Not yet read by native speakers.
+//! use ("caret" is `cursor`, `каретка`, `光标`… there). Not yet read by native speakers. The
+//! Turkish and Russian ones are echelon's, written for storytold/wordcraft#570.
 
 /// English source, then its translation for every language in [`crate::i18n::LANGUAGES`].
 static STRINGS: &[(&str, &[(&str, &str)])] = &[
@@ -21,6 +22,8 @@ static STRINGS: &[(&str, &[(&str, &str)])] = &[
             ("sr", "Анимација"),
             ("sr-latn", "Animacija"),
             ("et", "Animatsioon"),
+            ("tr", "Animasyon"),
+            ("ru", "Анимация"),
         ],
     ),
     (
@@ -35,6 +38,8 @@ static STRINGS: &[(&str, &[(&str, &str)])] = &[
             ("sr", "Анимирај курсор (клизи и постепено се гаси)"),
             ("sr-latn", "Animiraj kursor (klizi i postepeno se gasi)"),
             ("et", "Animeeri tekstikursorit (libiseb ja hajub)"),
+            ("tr", "İmleci canlandır (kayarak ilerler ve solarak yanıp söner)"),
+            ("ru", "Анимировать курсор (плавно перемещается и угасает)"),
         ],
     ),
     (
@@ -69,6 +74,14 @@ static STRINGS: &[(&str, &[(&str, &str)])] = &[
             (
                 "et",
                 "Sees: tekstikursor libiseb tippimisel või nooleklahvide kasutamisel uude kohta ja selle vilkumine hajub sujuvalt. Väljas: kursor hüppab ja vilgub järsult.",
+            ),
+            (
+                "tr",
+                "Açık: yazarken veya ok tuşlarını kullanırken imleç yeni yerine kayarak gider ve yanıp sönerken solar. Kapalı: imleç yeni yerine atlar, keskin biçimde yanıp söner.",
+            ),
+            (
+                "ru",
+                "Вкл.: при вводе текста и нажатии клавиш со стрелками курсор плавно перемещается на новое место, а его мигание плавно угасает. Выкл.: курсор перескакивает и резко мигает.",
             ),
         ],
     ),

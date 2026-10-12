@@ -18,9 +18,9 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `e4b7d15` (WordCraft 0.5.0), 2026-10-11 |
-| Last merge of upstream | none yet |
-| Fork carries | 2 changes upstream lacks (below) |
+| Fork `main` is based on | upstream `0db810d` (WordCraft 0.5.0 and 77 commits after it), 2026-10-12 |
+| Last merge of upstream | 2026-10-12: `0db810d`, 77 commits, the first merge since the fork began at `e4b7d15` |
+| Fork carries | 1 change upstream lacks (below) |
 
 ## What the fork carries
 
@@ -29,8 +29,7 @@ merged; delete the row once a merge of upstream brings it back.
 
 | Change | Where | Upstream |
 |---|---|---|
-| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Offered 2026-10-11: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)**, rewritten in upstream's style (below). Upstream has since rebuilt File › Options as panes, so there the switch is in Options › Advanced › Animation. When it lands and a merge of upstream brings it back, remove the `aniefork` version and its hooks |
-| **The paste-picture test passes on Windows.** `paste_inserts_clipboard_pixels` gave `names_picture_files` the path `/tmp/b.JPG`, which Windows doesn't call absolute, so the test failed there. It now uses the system's own absolute path, and on Windows also checks drive, server and `file:///C:/…` forms. Test only: the app behaves as before. | the tests in `crates/ui-egui/src/paste_picture.rs` | Offered 2026-10-11 as [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571), **closed the same day without merging: upstream's main already had its own fix** for the test. At the next merge of upstream, take upstream's version of the test and delete this row |
+| **The caret glides and fades like Word's on Windows** instead of jumping and blinking hard: 100 ms along Word's curve for keys and typing, a fading blink. Calibrated against Word (see below). File › Options › Advanced › Animation turns it off. | `crates/ui-egui/src/aniefork/` (`caret.rs`, `options.rs`, `strings.rs`); hooks listed below (`520f021`, `5cccc23`, `89ced76`) | **Offered 2026-10-11: [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)**, rewritten in upstream's style (below). When it lands and a merge of upstream brings it back, remove the `aniefork` version and its hooks |
 
 ## The caret: Word's glide and fade
 
@@ -77,8 +76,8 @@ need a modifier; moves that start or end off screen; input methods; a click whil
 - **Our own choices, where Word wasn't measured:** nothing glides when the view changed (zoom, a
   resized window, scrolling, another document), when the caret wasn't drawn the frame before (a
   selection, the canvas without focus), or when a move starts or ends off screen.
-- **The setting:** File › Options › Animation › "Animate the caret (it glides and fades)", on by
-  default. Off, the caret jumps and blinks hard, exactly as upstream. It is the command
+- **The setting:** File › Options › Advanced › Animation › "Animate the caret (it glides and
+  fades)", on by default. Off, the caret jumps and blinks hard, exactly as upstream. It is the command
   `ui.caretAnimation` (`{"value": true|false}` sets it, no value reads it; the reply is
   `{"caretAnimation": …}`), and it is saved with the interface settings (`ui.json`, under
   `aniefork`), so builds without the fork ignore it.
@@ -93,8 +92,8 @@ need a modifier; moves that start or end off screen; input methods; a click whil
   caret in flight; and `WORDCRAFT_CARET_GLIDE_MS=0`. Any other value of that variable sets the
   glide and fade time (up to 10000), for looking at the motion slowed down.
 - **The section's text** is translated into every interface language in the fork's own table
-  (`aniefork/strings.rs`), not in upstream's catalogs. The translations are ours and haven't been
-  read by native speakers.
+  (`aniefork/strings.rs`), not in upstream's catalogs. Nine translations are ours and haven't
+  been read by native speakers; the Turkish and Russian ones are echelon's, written for #570.
 - **Tests:** `cargo test -p wordcraft-ui-egui aniefork` (Word's measured frames against the curve,
   frame-rate independence, the second-key rule, clicks and scripts, the blink's fades, view
   changes, hostile numbers, a key gliding the caret in the real canvas, the setting as a command
@@ -102,7 +101,7 @@ need a modifier; moves that start or end off screen; input methods; a click whil
 
 ### Open
 - The cases listed under "Not measured".
-- A native speaker's read of the nine translations.
+- A native speaker's read of our nine translations.
 
 ## Hooks in upstream files
 
@@ -114,7 +113,7 @@ still there:
 | `crates/ui-egui/src/lib.rs` | `pub mod aniefork;` |
 | `crates/ui-egui/src/lib.rs`, `UiState` | the field `pub aniefork: aniefork::Prefs` (last in the struct) and `aniefork: aniefork::Prefs::default()` in its `Default` |
 | `crates/ui-egui/src/lib.rs`, `ui_command` | the match's last arm is `_ => return aniefork::ui_command(self, id, p)` (upstream: `_ => return None`) |
-| `crates/ui-egui/src/backstage.rs`, `options_page` | `crate::aniefork::options::section(app, ui);` just before the Agents heading |
+| `crates/ui-egui/src/options.rs`, `advanced` | `crate::aniefork::options::section(app, ui);` after the Display section's grid, just before the space above the Customize section |
 | `crates/ui-egui/src/canvas.rs`, `show`, the equation caret | `crate::aniefork::caret::look(…)` gives the bar and its opacity; it is drawn at that opacity (`gamma_multiply`) when the opacity is above 0 |
 | `crates/ui-egui/src/canvas.rs`, `show`, the text caret | the bar is computed first, passed through `crate::aniefork::caret::look(…)` with `since` and `on`, and drawn at the returned opacity |
 
@@ -128,11 +127,15 @@ git merge upstream/main
 Sync often: upstream lands dozens of commits a day, and small merges are easy. What can still
 conflict:
 
-- **The hooks above**, when upstream edits the caret drawing in `canvas.rs`. Take upstream's code
-  and put the hook back.
+- **The hooks above**, when upstream edits the code around them: the caret drawing in
+  `canvas.rs`, the end of `UiState` and of `ui_command` in `lib.rs` (upstream adds its own fields
+  and commands there), the Advanced pane in `options.rs`. Take upstream's code and put the hook
+  back. When upstream moves the code a hook is in (the Options page went from `backstage.rs` to
+  `options.rs` in #485), the hook follows it.
 - **Interface strings:** none in upstream's catalogs. The fork's texts are in
   `aniefork/strings.rs`; when upstream adds an interface language,
-  `every_fork_text_is_translated_into_every_language` fails until it is added there.
+  `every_fork_text_is_translated_into_every_language` fails until it is added there (Turkish
+  and Russian were added at the first merge).
 - **`ATTRIBUTION.md`:** when both sides add assets (the fork has none so far).
 
 After a merge, run `cargo xtask ci` before committing it, and update the tables above.
@@ -191,6 +194,13 @@ The workspace says `rust-version = "1.90"`, but egui 0.36 needs Rust 1.95 or new
 toolchain fails with a dependency error (pdfcraft's fork found the same and carries a fix).
 `cargo xtask ci` also needs the `wasm32-unknown-unknown` target.
 
+Give every checkout its own `CARGO_TARGET_DIR`: the fork and a worktree made for an upstream pull
+request must not share one. Cargo names the workspace's artifacts by their path inside the
+workspace, so a second checkout finds the first one's artifacts "fresh", and `xtask` keeps the
+root of the checkout it was compiled in, so `cargo xtask ci` then checks the other checkout
+without saying so. After a gate run, look in its log for the path in `Compiling xtask … (path)`
+and for the fork's own tests (`aniefork::`).
+
 Upstream runs its test suite on FreeBSD only (`.github/workflows/freebsd.yml`), so a test that
 fails on Windows goes unnoticed there. The fork is developed on Windows: run the whole gate, and
 don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends, which follow it).
@@ -199,6 +209,17 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-12 (first merge of upstream):** Merged upstream `0db810d` into the fork's `main`:
+  77 commits, among them File › Options as panes, Outline view, vertical text for sections, the
+  Customize dialogs and the Turkish and Russian interface languages. Three files conflicted.
+  `lib.rs`: the fork's hooks and upstream's new modules, settings and command sat side by side;
+  both kept, the fork's setting and its last arm still last. `backstage.rs`: upstream moved the
+  Options page to `options.rs`, so its version is taken and the fork's hook moved to the
+  Advanced pane, between Display and Customize, where #570 has it. `paste_picture.rs`:
+  upstream's own fix of the Windows test taken; the fork no longer carries that change. In the
+  fork's files: the section is spaced like the pane's own, its test opens the Advanced pane,
+  and the three texts gained Turkish and Russian (echelon's, from #570). `cargo xtask ci`
+  passes.
 - **2026-10-12 (the DOCX reader's clippy stop: fixed upstream, nothing to send):** The
   `large_enum_variant` stop met while merging main into #570 was to be offered upstream as a fix
   of its own. A fetch showed upstream had boxed the variant itself the same day

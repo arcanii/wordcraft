@@ -18,8 +18,8 @@ pub mod strings;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Prefs {
-    /// File ▸ Options ▸ Animation: the caret glides and fades as Word's does (on, the default), or
-    /// jumps and blinks on and off as upstream's does (off).
+    /// File ▸ Options ▸ Advanced ▸ Animation: the caret glides and fades as Word's does (on, the
+    /// default), or jumps and blinks on and off as upstream's does (off).
     pub caret_animation: bool,
 }
 
@@ -32,8 +32,8 @@ impl Default for Prefs {
 /// The fork's commands in the UI layer (`None`: not one of them).
 pub(crate) fn ui_command(app: &mut WordApp, id: &str, p: &Value) -> Option<Result<Value, String>> {
     match id {
-        // File ▸ Options ▸ Animation: `value` true or false turns the caret's animation on or
-        // off; no value reads it.
+        // File ▸ Options ▸ Advanced ▸ Animation: `value` true or false turns the caret's animation
+        // on or off; no value reads it.
         "ui.caretAnimation" => {
             match p.get("value") {
                 None => {}
@@ -81,11 +81,11 @@ mod tests {
         assert_eq!(a.run("ui.caretAnimation", json!({"value": true})).unwrap()["caretAnimation"], true);
     }
 
-    /// File ▸ Options has an Animation section whose checkbox is the setting.
+    /// File ▸ Options ▸ Advanced has an Animation section whose checkbox is the setting.
     #[test]
     fn options_has_an_animation_section() {
         let mut a = app();
-        a.run("ui.backstage", json!({"value": true, "page": "options"})).unwrap();
+        a.run("file.options", json!({"pane": "advanced"})).unwrap();
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
             |ui, app: &mut WordApp| {
                 let ctx = ui.ctx().clone();
@@ -96,7 +96,7 @@ mod tests {
         );
         h.run_steps(4);
         assert!(h.query_by_label(options::HEADING).is_some(), "the section is there");
-        assert!(h.query_by_label("Display").is_some() && h.query_by_label("Agents").is_some(), "between upstream's own sections");
+        assert!(h.query_by_label("Measurement units:").is_some() && h.query_by_label("Keyboard shortcuts:").is_some(), "in upstream's Advanced pane");
         h.get_by_label(options::CARET).click();
         h.run_steps(4);
         assert!(!h.state().ui.aniefork.caret_animation, "the checkbox turns it off");
