@@ -187,7 +187,10 @@ fork gridcraft (storytold/gridcraft#265, #266):
   also at the top conflicts with every commit upstream lands. Put the row three or four rows
   down, among rows of the same date; rows added above it then merge cleanly (#570 stopped
   conflicting there once its rows were moved). The same goes for `contributors/people.toml`,
-  where new entries land at or near the end: put the entry among the older ones.
+  where new entries land at or near the end: put the entry among the older ones. And for the
+  catalogs (`i18n/*.tsv`): every branch appends its strings at the end, so strings appended
+  there conflict with each branch of the same days that lands. Put a pull request's strings
+  next to related older ones (#570's follow "Show rulers"); their order in a catalog is free.
 
 ## Building
 
@@ -210,6 +213,12 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-12 (#570: a fifth merge of main):** All eleven catalogs conflicted: upstream's
+  new strings landed where #570's three were. Merged as `5dc8fe9`, with #570's strings moved
+  next to "Show rulers". Upstream's caret work for complex scripts changed `canvas.rs` around
+  the hooks and merged cleanly. Checked with the worktree's own build cache: fmt, clippy, the
+  interface crate's 232 tests, assets, layers and wasm; the translation audit still lists only
+  upstream's two Mailings texts.
 - **2026-10-12 (#570: two more merges of main):** Both conflicts were in
   `contributors/people.toml`, where upstream added a contributor in the place #570's entry was
   (`49c9408`, then `710d450`, which moved the entry up among the older ones). The log tables
