@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `ad8c264`, 2026-10-12 |
-| Last merge of upstream | 2026-10-12: `ad8c264`, 49 commits (the second merge; the first, `0db810d`, was the same day) |
+| Fork `main` is based on | upstream `159b84f` (WordCraft 0.6.1 and the commits after it), 2026-10-13 |
+| Last merge of upstream | 2026-10-13: `159b84f`, 119 commits, no conflicts (earlier: `0db810d` and `ad8c264`, both 2026-10-12) |
 | Fork carries | no code: only this file and `AGENTS-aniefork.md` differ from upstream |
 
 ## What the fork carries
@@ -217,6 +217,9 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-13 (third merge of upstream):** Merged upstream `159b84f`: 119 commits, with the
+  release WordCraft 0.6.1 among them, the first release that has the caret's glide and fade.
+  No conflicts, as the fork carries no code. `cargo xtask ci` passes on the fork's tree.
 - **2026-10-12 (the fork's caret copy removed; the fork carries no code):** Merged upstream
   `ad8c264` (49 commits, #570's merge among them) and removed the fork's own caret:
   `crates/ui-egui/src/aniefork/` deleted, and `lib.rs`, `canvas.rs` and `options.rs` taken from
