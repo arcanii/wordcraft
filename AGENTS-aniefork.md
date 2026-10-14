@@ -6,6 +6,15 @@ everything in them still applies (never crash, no Microsoft assets, clean room, 
 This file says where the fork differs. Read it and [`ROADMAP-aniefork.md`](ROADMAP-aniefork.md) at
 the start of a session. The sister fork arcanii/pdfcraft follows the same rules.
 
+**What kind of fork this is:** one kept only to propose changes back to upstream (the owner,
+2026-10-14: "This fork was for developing features for upstream"). Upstream's brand licence
+([`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt), "Forks and modified versions")
+lets such a fork keep the ArtCraft marks unchanged, so `README.md` and the files in `docs/brand/`
+stay upstream's here. That holds only while the fork gives out nothing of its own: no releases or
+builds, and no feature kept for the fork's own sake. Before either of those, the marks must be
+removed and the fork must stop presenting itself as an ArtCraft product, as the sister fork of
+gridcraft (arcanii/DevCraft) did on 2026-10-14.
+
 At present the fork carries no code of its own: its one feature, the caret's glide, went upstream
 (storytold/wordcraft#570) and the fork's copy was removed. The rules below are for the next
 fork-only change; `git show 2648505:crates/ui-egui/src/aniefork/mod.rs` and its neighbours show

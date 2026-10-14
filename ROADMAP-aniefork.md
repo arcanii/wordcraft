@@ -217,6 +217,14 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-14 (the README and upstream's marks stay):** Asked whether upstream's rules for
+  forks need the README changed, as the sister fork of gridcraft did the same day. No:
+  upstream's brand licence says a fork that distributes or publishes a modified version must
+  remove the ArtCraft marks, and that "a fork kept only to propose changes back to this
+  repository may keep the marks unchanged". This fork is the second kind (the owner: "This
+  fork was for developing features for upstream"): its code is upstream's, it has no releases
+  or tags, and its release workflow runs only on a `release` branch or by hand. Written into
+  `AGENTS-aniefork.md`, with what would change the answer.
 - **2026-10-13 (third merge of upstream):** Merged upstream `159b84f`: 119 commits, with the
   release WordCraft 0.6.1 among them, the first release that has the caret's glide and fade.
   No conflicts, as the fork carries no code. `cargo xtask ci` passes on the fork's tree.
