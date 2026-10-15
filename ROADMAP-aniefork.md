@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `159b84f` (WordCraft 0.6.1 and the commits after it), 2026-10-13 |
-| Last merge of upstream | 2026-10-13: `159b84f`, 119 commits, no conflicts (earlier: `0db810d` and `ad8c264`, both 2026-10-12) |
+| Fork `main` is based on | upstream `86adfd3` (WordCraft 0.7.0 and the commits after it), 2026-10-16 |
+| Last merge of upstream | 2026-10-16: `86adfd3`, 306 commits, no conflicts (earlier: `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file and `AGENTS-aniefork.md` differ from upstream |
 
 ## What the fork carries
@@ -225,6 +225,10 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (fourth merge of upstream):** Merged upstream `86adfd3`: 306 commits, with the
+  release WordCraft 0.7.0 among them and the shared PDF writer (`craft-pdf`) adopted. No
+  conflicts, as the fork carries no code. `cargo xtask ci` passes on the fork's tree (2,769
+  tests), this time on macOS with rustup's Rust 1.98.1 (Homebrew's Rust has no wasm target).
 - **2026-10-15 (memory use investigated):** Asked why WordCraft uses so much memory and how to
   reduce it, possibly as an option. Measured upstream `daf8caa` (0.7.0) headless and through the
   CLI, and traced the code. Findings, strategies and an option design are in
