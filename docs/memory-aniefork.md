@@ -1,0 +1,237 @@
+# Memory use: findings (aniefork)
+
+Status: investigated 2026-10-15 on upstream `daf8caa` (WordCraft 0.7.0). Nothing has been changed
+yet; this is the record to work from. Changes made from it go upstream as pull requests, as
+[`AGENTS-aniefork.md`](../AGENTS-aniefork.md) says.
+
+## Summary
+
+- **The engine is small.** Without the interface, a 74-page text document takes about 35 MB.
+- **The interface starts large.** About 380 MB with an empty document in the headless measurement.
+  Much of that is graphics overhead, and on a software GPU it includes what a real GPU keeps in
+  its own memory. **The real app has not been measured yet.**
+- **Four things add the most on top:**
+  - **Font fallback:** one Chinese word adds about 66 MB, one emoji about 140 MB. Whole font
+    families are loaded before WordCraft checks whether they contain the character, and they are
+    never released.
+  - **Zoom:** whole-page images are kept for about 3 screens around the view and grow with the
+    square of the zoom. At 200%, memory is about 360 MB higher.
+  - **Pictures:** decoded at full resolution into caches of 128 MB each that empty completely
+    when full. PDF export of a picture-heavy document peaks at 568 MB.
+  - **Undo:** up to 500 full copies of the document, with no limit by size (not measured).
+- **Scrolling does not pile up memory.** Page images out of range are released. An earlier
+  measurement that seemed to show gigabytes was a fault in how the measuring tool was used (see
+  "A measuring pitfall").
+
+## Measurements
+
+**Setup:**
+- Windows 11, with release builds of upstream `daf8caa`.
+- Private bytes (Task Manager's "Memory") sampled every 50 ms with
+  [`measure.ps1`](memory-aniefork/measure.ps1).
+- The interface was run headless with the `ui_shot` example: a 1440×900 window at 2× pixel
+  density, on the software adapter (`WGPU_BACKEND=dx12`).
+- The engine was run alone through `wordcraft-cli`.
+- The test documents are synthetic, made by [`make_docs.py`](memory-aniefork/make_docs.py):
+  - `text-100p`: 74 pages of text;
+  - `pics-100p`: 89 pages with 20 PNG pictures of 2400×1800, a 92 MB file;
+  - four one-line documents for font fallback.
+
+**Interface (headless)**, with a picture rendered after every step, as the app renders every frame:
+
+| Situation | Private memory |
+|---|---|
+| Empty document | about 380 MB |
+| The sample document | about 385 MB |
+| `text-100p` open | about 410 MB |
+| `text-100p`, paging through all 74 pages | about 520 MB, flat |
+| `text-100p` at 200% zoom, paging through 30 pages | about 900 MB, flat |
+| `pics-100p`, paging through all pages | 620–715 MB, rising and dropping as the picture cache fills and empties |
+| One-line document: Latin only | peak 495 MB |
+| One-line document: a Chinese word | peak 561 MB (+66) |
+| One-line document: an emoji | peak 636 MB (+141) |
+| One-line document: Chinese, emoji, Thai, Devanagari, Arabic | peak 629 MB (+134) |
+
+**Engine only (CLI):**
+
+| Situation | Private memory |
+|---|---|
+| `info text-100p` (open and lay out) | 32 MB |
+| `convert text-100p` to PDF | 35 MB |
+| `info pics-100p` | 129 MB |
+| `convert pics-100p` to PDF | peak 568 MB, 199 MB at the end |
+
+**Caveats:**
+- The software adapter keeps GPU memory in ordinary RAM, so the real app on a graphics card will
+  differ, most of all in the baseline and in the page images.
+- CLI runs shorter than about 0.3 s can miss their peak with 50 ms sampling, so the two `info`
+  rows are lower bounds. The one-line documents run through the CLI were too quick to measure
+  and are left out.
+
+### A measuring pitfall
+
+egui_kittest hands work to the GPU only when it renders a picture. A `ui_shot` script that runs
+only `{"steps": n}` therefore keeps every page-image upload and release pending. Paging through
+`text-100p` that way showed 2.4 GB, and `pics-100p` 3.1 GB, which the app never uses. Render
+after each step (`{"shot": …}`), as the scripts from
+[`make_ui_scripts.py`](memory-aniefork/make_ui_scripts.py) do.
+
+## Where the memory goes
+
+From a read-only survey of upstream `daf8caa`. The key references were checked by hand. Line
+numbers will drift as upstream moves. Sizes marked "est." are estimates, not measurements.
+
+### 1. Fixed graphics overhead
+
+- **GPU allocator:** wgpu's default `MemoryHints::Performance` makes the DX12 allocator take
+  blocks of at least 128 MB of device memory and 64 MB of upload memory, the latter in system
+  RAM. It keeps the last block (wgpu-hal 30.0.1 `lib.rs:445-450`; gpu-allocator 0.28 `d3d12`).
+- **Glyph sheet:** egui's font atlas is as wide as the maximum texture side (8192) and doubles in
+  height until it is 80% full. It can reach about 214 MB before it resets. A CPU copy is kept,
+  and each growth copies it (epaint 0.36.2 `text/fonts.rs:730`, `texture_atlas.rs`). About
+  8–16 MB for a Latin interface, more for CJK (est.).
+
+### 2. Page images
+
+- **One texture per page:** each page is a single texture, not tiles (`crates/ui-egui/src/canvas.rs:35`).
+- **Resolution:** zoom × 96/72 × pixels per point. Each side is capped at the maximum texture
+  side (`canvas.rs:1011`).
+- **What is kept:** textures for pages within one screen width and 3 screen heights of the view
+  (`TEXTURE_KEEP_SCREENS`, `canvas.rs:32`, used at `1141`). Others are released.
+- **Size per Letter page:**
+
+  | Zoom | Pixels per point | Size |
+  |---|---|---|
+  | 100% | 1.0 | 3.4 MB |
+  | 100% | 1.5 | 7.8 MB |
+  | 200% | 1.5 | 31 MB |
+
+  The measured cost is about 110 MB at 100% and about 360 MB more at 200% (headless).
+- **Extra copies per render:** each render allocates the page's pixels, copies them into an
+  egui image, and wgpu copies them again for upload (`crates/render/src/lib.rs:489-519`).
+- **Rasteriser rebuilt per page:** each page render builds a new rasteriser context with a pool
+  of up to 8 threads (`render/src/lib.rs:499`), which costs time as well as memory.
+
+### 3. Fonts
+
+**Whole families, kept forever:**
+- `load_cataloged` reads every file of a family whole with `std::fs::read`
+  (`crates/fonts/src/fontdb.rs:1179-1199`).
+- Faces are never unloaded (`fontdb.rs:87-111`).
+- There is no memory-mapping; the workspace forbids `unsafe`.
+
+**Fallback loads before it checks:**
+- `system_fallback` (`fontdb.rs:1579`) goes through the script's fallbacks, then the preferred
+  families, then `SYSTEM_FALLBACKS`. It loads each installed family first and checks coverage
+  after, so families that don't cover the character stay loaded.
+- On Windows (file sizes from `C:\Windows\Fonts`):
+  - a CJK character loads Arial, Segoe UI and Microsoft YaHei, about 60 MB;
+  - an emoji also loads Yu Gothic, Malgun Gothic, Segoe UI Symbol and Segoe UI Emoji, about
+    150 MB.
+- This matches the measured +66 and +141 MB.
+
+**Smaller items:**
+- **Outline cache:** 50,000 glyph outlines, emptied completely when full (`fontdb.rs:574`).
+- **CJK interface font:** once a CJK interface language, the language picker or a CJK file name
+  asks for it, one system CJK font of up to 128 MB is kept for good (`crates/ui-egui/src/theme.rs:499-517`).
+- **Caption fallback faces:** copied twice, once by us and once by epaint (`theme.rs:406`).
+
+### 4. Pictures
+
+- **Encoded bytes:** kept for the whole session and never pruned when a picture is deleted
+  (`crates/doc/src/lib.rs:681`, `1266-1278`).
+- **Decoding:** at full source resolution (`render/src/lib.rs:173-208`), into two caches,
+  `images()` and `vectors()`. Each holds 128 MB and 256 entries, and empties completely when
+  full (`render/src/lib.rs:112-168`). That emptying is the rise and drop measured with `pics-100p`.
+- **Size limit applied too late:** picture adjustments decode the whole picture before checking
+  the 80-megapixel limit (upstream issue #1321; `crates/engine/src/cmd/objects.rs:1038-1046`).
+
+### 5. Undo
+
+- **Full copies:** every step stores a whole `Document`, up to `MAX_UNDO` = 500 steps
+  (`crates/engine/src/session.rs:571`, `845-872`), with no limit by size.
+- **What is shared and what isn't:** paragraphs and pictures are shared between steps, but
+  styles, numbering, comments, revisions and settings are copied each time.
+- **Versions:** keeps up to 50 more full copies (`crates/engine/src/cmd/tools.rs:396-401`).
+- **Not measured:** about 50–500 KB per step for a document that came from Word (est.).
+
+### 6. Smaller items
+
+- **Layout cache:** keeps up to 4× its live entries as stale ones (`crates/layout/src/lib.rs:2307-2313`),
+  and the spare capacity of growing lists (upstream PR #1753).
+- **Recovery:** every 10 s while there are unsaved changes, it copies the document, writes it as
+  JSON with pictures as number arrays, and reads it back to compare
+  (`crates/engine/src/recovery/desktop.rs:244-253`, `462-490`).
+- **AutoSave:** builds the whole `.docx` in memory before writing it.
+- **Proofing:** about 4–5 MB for English.
+
+## What to do
+
+### No downside: just do them (upstream pull requests)
+
+1. **Font fallback.** Check whether a family covers the character, using the coverage index the
+   font database already has, before loading it, and load only the face file needed instead of
+   the whole family. Expected: 60–150 MB less on Windows for any document with CJK text or
+   emoji. **The first candidate:** the largest measured win, no trade-off, and easy to show with
+   the one-line documents.
+2. **Pictures.** Decode at the size shown on screen. Drop the least-recently-used entries by
+   bytes instead of emptying the cache. Prune media no step of the undo history uses. Check
+   limits before decoding (#1321).
+3. **Rasteriser.** Reuse one rasteriser context and thread pool across page renders. This is
+   faster as well as smaller.
+4. **Undo.** Share unchanged styles, numbering, comments and revisions between steps (behind
+   `Arc`), and add a size cap next to the step cap.
+5. **Layout.** Release spare capacity and keep fewer stale entries (#1753 is upstream's start).
+6. **Recovery and AutoSave.** Write straight to the file instead of building copies, and compare
+   a hash instead of reading the snapshot back.
+
+### Trade-offs: candidates for an option
+
+A setting such as File › Options › Advanced › "Use less memory", the same on every platform as the
+owner wants settings to be, could switch these together:
+
+| Change | Cost |
+|---|---|
+| Keep fewer page images ready (1 screen instead of 3), or a byte budget; tiles at high zoom | pages redraw when scrolling back |
+| Smaller picture cache | pictures are decoded again more often |
+| `MemoryHints::MemoryUsage` for wgpu (smaller blocks) | slightly slower allocation; needs a restart |
+| Cap the glyph sheet (a lower maximum texture side) | glyphs are drawn again more often; also caps page images unless they are tiled |
+
+## Upstream context
+
+| Item | State | What it is |
+|---|---|---|
+| #1753 | open | layout uses less memory on long tables |
+| #1321 | open | image limits applied after allocation |
+| #1354 | open | font family caches keep arbitrary keys |
+| #1595 | open | language packs downloaded on demand |
+| #848 | fixed by #874 | memory grew with every font change |
+| #1149 | merged | equation pictures share a few atlas textures |
+
+## Still open
+
+- **The real app on a real GPU.** It needs a WordCraft window on the desktop, so ask the owner
+  first (the GPU caution in the build notes). Expect the baseline and the page images to differ
+  from the headless numbers.
+- **Undo** over a long editing session.
+- **macOS and Linux:** not measured.
+- **Craft-fonts in a release build:** their resident size is not measured.
+
+## Measuring again
+
+1. Build release copies of upstream's `main` in a separate worktree with its own
+   `CARGO_TARGET_DIR` (never shared with the fork's checkout; see `ROADMAP-aniefork.md` ›
+   Building):
+   `cargo build --release -p wordcraft -p wordcraft-cli` and
+   `cargo build --release -p wordcraft-ui-egui --example ui_shot`.
+2. Make the documents and scripts:
+   `python -I docs/memory-aniefork/make_docs.py <dir>`, then
+   `python -I docs/memory-aniefork/make_ui_scripts.py <dir>`.
+3. Run each script through the sampler, in PowerShell:
+
+   ```powershell
+   docs/memory-aniefork/measure.ps1 -Label "text-100p" -Exe <ui_shot.exe> -ArgLine "<dir>/ui-text-100p.jsonl" -Env @{ WGPU_BACKEND = "dx12" }
+   ```
+
+   The CLI works the same way, without `-Env`, for example with
+   `-ArgLine "convert <dir>/pics-100p.docx <dir>/out.pdf"`.

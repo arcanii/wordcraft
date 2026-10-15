@@ -37,6 +37,14 @@ What the fork carried, and how each ended:
 | **The caret glides and fades like Word's on Windows** (100 ms along Word's curve for keys and typing, a fading blink, a switch in Options) | 2026-10-11 to 2026-10-12, in `crates/ui-egui/src/aniefork/` with hooks in `lib.rs`, `canvas.rs` and the Options page (last present in `2648505`) | **Merged 2026-10-12 as [storytold/wordcraft#570](https://github.com/storytold/wordcraft/pull/570)** (`cbd9291`); upstream's is `crates/ui-egui/src/caret_glide.rs`. The fork's copy was removed at the next merge of upstream |
 | **The paste-picture test passes on Windows** | 2026-10-11 to 2026-10-12, in the tests of `crates/ui-egui/src/paste_picture.rs` | Offered as [storytold/wordcraft#571](https://github.com/storytold/wordcraft/pull/571) and closed unmerged: upstream had fixed the test itself. Upstream's version was taken at the first merge |
 
+## Open work
+
+Investigations recorded for later, each meant to end in upstream pull requests.
+
+| Topic | Record | State |
+|---|---|---|
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on upstream `daf8caa` (2026-10-15); nothing changed yet. First candidate: font fallback loads whole families before checking coverage (+66 MB for a Chinese word, +141 MB for an emoji). The real app on a real GPU is not measured yet |
+
 ## The caret: Word's glide and fade
 
 WordCraft's caret used to jump to its new place and blink hard on and off. Since
@@ -217,6 +225,12 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-15 (memory use investigated):** Asked why WordCraft uses so much memory and how to
+  reduce it, possibly as an option. Measured upstream `daf8caa` (0.7.0) headless and through the
+  CLI, and traced the code. Findings, strategies and an option design are in
+  `docs/memory-aniefork.md`; the tools that measured them are in `docs/memory-aniefork/`. Nothing
+  changed in the code. A measuring pitfall found on the way: `ui_shot` scripts must render after
+  each step, or pending GPU work shows gigabytes the app never uses.
 - **2026-10-14 (the README and upstream's marks stay):** Asked whether upstream's rules for
   forks need the README changed, as the sister fork of gridcraft did the same day. No:
   upstream's brand licence says a fork that distributes or publishes a modified version must
