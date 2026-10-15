@@ -43,7 +43,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on upstream `daf8caa` (2026-10-15); nothing changed yet. First candidate: font fallback loads whole families before checking coverage (+66 MB for a Chinese word, +141 MB for an emoji). The real app on a real GPU is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); nothing changed yet. First candidate: font fallback loads whole families before checking coverage (one emoji: +141 MB on Windows, +528 MB on macOS). On macOS, freed page buffers kept by the allocator show as 1.4 GB after scrolling, and PDF export copies each embedded font file. The real app is not measured yet |
 
 ## The caret: Word's glide and fade
 
@@ -225,6 +225,15 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (memory use measured on macOS):** Asked whether the Windows measurements hold on
+  macOS. Measured the merged fork headless (Metal, real GPU) and through the CLI with a new
+  sampler, `docs/memory-aniefork/measure_macos.py`, which reads the kernel's peak footprint.
+  The causes are the same; three cost more or show up only here: font fallback (+528 MB for one
+  emoji, against +141 MB on Windows), large page buffers that the macOS allocator keeps after
+  they are freed (1.4 GB after paging, 134 MB with its cache off), and PDF export copying each
+  embedded font file (+183 MB for Apple Color Emoji). Also found: every `ui_shot` picture costs
+  about 450 MB for a moment, so headless peaks are the harness's. Recorded in
+  `docs/memory-aniefork.md`. Nothing changed in the code.
 - **2026-10-16 (fourth merge of upstream):** Merged upstream `86adfd3`: 306 commits, with the
   release WordCraft 0.7.0 among them and the shared PDF writer (`craft-pdf`) adopted. No
   conflicts, as the fork carries no code. `cargo xtask ci` passes on the fork's tree (2,769

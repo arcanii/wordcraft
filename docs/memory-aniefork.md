@@ -1,8 +1,9 @@
 # Memory use: findings (aniefork)
 
-Status: investigated 2026-10-15 on upstream `daf8caa` (WordCraft 0.7.0). Nothing has been changed
-yet; this is the record to work from. Changes made from it go upstream as pull requests, as
-[`AGENTS-aniefork.md`](../AGENTS-aniefork.md) says.
+Status: investigated 2026-10-15 on Windows, on upstream `daf8caa` (WordCraft 0.7.0); measured on
+macOS 2026-10-16, on the fork's `f424471` (upstream `86adfd3`, 50 commits later). Nothing has been
+changed yet; this is the record to work from. Changes made from it go upstream as pull requests,
+as [`AGENTS-aniefork.md`](../AGENTS-aniefork.md) says.
 
 ## Summary
 
@@ -22,6 +23,16 @@ yet; this is the record to work from. Changes made from it go upstream as pull r
 - **Scrolling does not pile up memory.** Page images out of range are released. An earlier
   measurement that seemed to show gigabytes was a fault in how the measuring tool was used (see
   "A measuring pitfall").
+- **On macOS the same causes cost more** (see "Measurements on macOS"):
+  - **Font fallback is about four times worse:** one emoji keeps about 530 MB, because every
+    CJK family listed before Apple Color Emoji is installed on a Mac and large. One Chinese word
+    keeps about 80 MB.
+  - **Scrolling looks as if it piles up memory:** after paging through 74 pages, Activity
+    Monitor shows 1.4 GB. WordCraft holds only about 150 MB of it. The rest is memory it has
+    already freed, which macOS's allocator keeps for reuse, because every page render allocates
+    and frees large buffers.
+  - **PDF export copies each embedded font file whole:** another 75 MB for a Chinese word and
+    183 MB for an emoji. This is the case on every platform.
 
 ## Measurements
 
@@ -75,6 +86,81 @@ only `{"steps": n}` therefore keeps every page-image upload and release pending.
 `text-100p` that way showed 2.4 GB, and `pics-100p` 3.1 GB, which the app never uses. Render
 after each step (`{"shot": …}`), as the scripts from
 [`make_ui_scripts.py`](memory-aniefork/make_ui_scripts.py) do.
+
+Rendering a picture has a cost of its own. On macOS each `{"shot": …}` adds about 410–450 MB for
+a moment, even for an empty document, and the memory goes back afterwards: with no shot, the
+empty document stays at 64 MB. The peaks of the headless runs are therefore the harness's, not
+the app's; compare the settled values between shots. The Windows peaks above probably include
+the same cost, which was not checked there. The cause inside `egui_kittest` was not traced.
+
+## Measurements on macOS
+
+**Setup:**
+- MacBook Pro, Apple M3 Max with 64 GB, macOS 27.0.1, with release builds of the fork's
+  `f424471` (upstream `86adfd3`, 50 commits after `daf8caa`).
+- Measured with [`measure_macos.py`](memory-aniefork/measure_macos.py). It reports the physical
+  footprint, which is what Activity Monitor calls "Memory". On Apple silicon the footprint
+  includes the process's GPU memory, as the Windows software adapter's did.
+- Its peak is the kernel's own lifetime maximum, so short CLI runs are measured exactly.
+- The same documents and `ui_shot` scripts as on Windows. `ui_shot` used the Metal backend on
+  the real GPU, with no `WGPU_BACKEND`.
+
+**Interface (headless).** "Settled" is the footprint during the 4 s hold at the end of each
+script, between pictures. "No allocator cache" is the same run with `MallocLargeCache=0`, which
+makes macOS give freed large blocks back at once:
+
+| Situation | Settled | Settled, no allocator cache | Peak (with the picture cost) |
+|---|---|---|---|
+| Empty document | 110 MB | 58 MB | 579 MB |
+| The sample document | 129 MB | | 596 MB |
+| `text-100p` open | 155 MB | | 623 MB |
+| `text-100p`, paging through all 74 pages | 1,413 MB | 134 MB | 1,890 MB (630 MB without the cache) |
+| `text-100p` at 200% zoom, paging through 30 pages | 1,033 MB | 239 MB | 1,536 MB (803 MB) |
+| `pics-100p`, paging through all pages | 1,547 MB | 260 MB | 2,102 MB (827 MB) |
+| One-line document: Latin only | 115 MB | | 583 MB |
+| One-line document: a Chinese word | 194 MB (+79) | | 663 MB |
+| One-line document: an emoji | 643 MB (+528) | | 1,114 MB |
+| One-line document: Chinese, emoji, Thai, Devanagari, Arabic | 642 MB (+527) | | 1,115 MB |
+
+The one-line documents were run twice, and the runs agreed within 2 MB.
+
+**Engine only (CLI):**
+
+| Situation | Peak |
+|---|---|
+| `info text-100p` (open and lay out) | 47 MB |
+| `convert text-100p` to PDF | 45 MB |
+| `info pics-100p` | 321 MB |
+| `convert pics-100p` to PDF | 556 MB |
+| `info` of the one-line documents: Latin, Chinese, emoji, all scripts | 20, 97 (+77), 566 (+546), 568 MB |
+| `convert` of the same to PDF | 17, 169, 748, 824 MB |
+| `render` of the first three to PNG | 28, 105, 575 MB |
+
+**What is different on macOS:**
+
+- **Freed memory stays counted.** After paging through `text-100p`, `vmmap --summary` shows a
+  footprint of 1.4 GB. Of that, 1.2 GB is "Malloc Large (empty)": 247 large blocks that
+  WordCraft has freed and macOS's allocator keeps, still dirty, for reuse. WordCraft's own use
+  is about 61 MB of small blocks, 24 MB of large ones and 61 MB of GPU textures.
+  - Every page render allocates the page's pixels and frees them again, along with the copies
+    and the rasteriser's buffers (see "Page images"). The allocator keeps them as they are freed.
+  - macOS gives such memory back under memory pressure, so it is not a leak. But Activity
+    Monitor shows it as WordCraft's until then.
+  - Windows' heap returns blocks this large to the system when they are freed, which is likely
+    why Windows showed a flat 520 MB where macOS shows 1.4 GB.
+- **The fallback list is long on a Mac.** For a character no loaded font has, `system_fallback`
+  goes through `SYSTEM_FALLBACKS` (`crates/fonts/src/fontdb.rs:504`) and loads every installed
+  family before the one that covers it. A Mac has nearly all the CJK families on that list.
+  File sizes on this Mac (est. from the files; the measured growth agrees):
+  - a Chinese word loads Helvetica Neue (4 MB), Arial (3 MB) and PingFang SC (the whole
+    PingFang collection, 75 MB), about 82 MB;
+  - an emoji also loads Hiragino Sans (W0–W9, 56 MB), Apple SD Gothic Neo (53 MB), Heiti SC
+    (STHeiti Light and Medium, 106 MB), STHeiti (13 MB), Arial Unicode MS (22 MB), Apple
+    Symbols (1 MB) and finally Apple Color Emoji (183 MB), about 516 MB in all.
+- **PDF export copies each font file again.** `craft_pdf::write::font` (storytold/craft-libs
+  `crates/pdf/src/write.rs:149`) copies the whole file of every face it embeds before handing it
+  to Krilla: `convert` adds 72 MB over `info` for the Chinese word (PingFang) and 182 MB for the
+  emoji (Apple Color Emoji). It is the same on Windows, where the files are smaller.
 
 ## Where the memory goes
 
@@ -171,19 +257,25 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
 
 1. **Font fallback.** Check whether a family covers the character, using the coverage index the
    font database already has, before loading it, and load only the face file needed instead of
-   the whole family. Expected: 60–150 MB less on Windows for any document with CJK text or
-   emoji. **The first candidate:** the largest measured win, no trade-off, and easy to show with
-   the one-line documents.
+   the whole family. Expected: 60–150 MB less on Windows and 80–530 MB less on macOS for any
+   document with CJK text or emoji. **The first candidate:** the largest measured win, no
+   trade-off, and easy to show with the one-line documents.
 2. **Pictures.** Decode at the size shown on screen. Drop the least-recently-used entries by
    bytes instead of emptying the cache. Prune media no step of the undo history uses. Check
    limits before decoding (#1321).
-3. **Rasteriser.** Reuse one rasteriser context and thread pool across page renders. This is
-   faster as well as smaller.
+3. **Rasteriser.** Reuse one rasteriser context and thread pool across page renders, and reuse
+   the page's pixel buffers instead of allocating new ones for each render. This is faster as
+   well as smaller. On macOS it is also what stops the allocator from keeping a gigabyte of
+   freed page buffers after scrolling.
 4. **Undo.** Share unchanged styles, numbering, comments and revisions between steps (behind
    `Arc`), and add a size cap next to the step cap.
 5. **Layout.** Release spare capacity and keep fewer stale entries (#1753 is upstream's start).
 6. **Recovery and AutoSave.** Write straight to the file instead of building copies, and compare
    a hash instead of reading the snapshot back.
+7. **PDF export.** Hand Krilla the font database's shared bytes instead of a copy of each font
+   file. This is a change to `craft_pdf::write::font` in storytold/craft-libs, which takes a
+   `&[u8]` today, and to its caller in `crates/pdf/src/lib.rs`. Expected: the size of every
+   embedded font file less at each export (75 MB for PingFang, 183 MB for Apple Color Emoji).
 
 ### Trade-offs: candidates for an option
 
@@ -212,9 +304,10 @@ owner wants settings to be, could switch these together:
 
 - **The real app on a real GPU.** It needs a WordCraft window on the desktop, so ask the owner
   first (the GPU caution in the build notes). Expect the baseline and the page images to differ
-  from the headless numbers.
+  from the headless numbers. On macOS the headless runs already use the real GPU, but the
+  harness's picture cost (see "A measuring pitfall") hides the app's own peaks.
 - **Undo** over a long editing session.
-- **macOS and Linux:** not measured.
+- **Linux:** not measured. macOS was measured headless and through the CLI on 2026-10-16.
 - **Craft-fonts in a release build:** their resident size is not measured.
 
 ## Measuring again
@@ -235,3 +328,13 @@ owner wants settings to be, could switch these together:
 
    The CLI works the same way, without `-Env`, for example with
    `-ArgLine "convert <dir>/pics-100p.docx <dir>/out.pdf"`.
+
+   On macOS, use `measure_macos.py` instead, with a label, any environment variables, `--`
+   and the command:
+
+   ```sh
+   python3 -I docs/memory-aniefork/measure_macos.py "text-100p" -- <ui_shot> <dir>/ui-text-100p.jsonl
+   python3 -I docs/memory-aniefork/measure_macos.py "text-100p, no cache" MallocLargeCache=0 -- <ui_shot> <dir>/ui-text-100p.jsonl
+   ```
+
+   `vmmap --summary <pid>` during a script's final hold shows where the footprint is.
