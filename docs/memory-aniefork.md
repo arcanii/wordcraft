@@ -255,8 +255,8 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
 
 ### No downside: just do them (upstream pull requests)
 
-1. **Font fallback.** **Done on the branch `font-fallback-coverage`** (`8c7bc50`, cut from
-   upstream `86adfd3`; not offered upstream yet, which is the owner's call).
+1. **Font fallback.** **Offered upstream as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345)**, from the branch
+   `font-fallback-coverage` (`8c7bc50`, cut from upstream `86adfd3`).
    - **What changed:** the coverage index is asked before a preferred family loads, and a family
      none of whose files has the character is skipped. The index now reads only each file's
      character maps, so it also covers files over 40 MB, such as PingFang and Apple Color Emoji.

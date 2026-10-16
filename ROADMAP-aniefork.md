@@ -43,7 +43,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is on the local branch `font-fallback-coverage` (`8c7bc50`; one emoji on macOS: 568 → 205 MB), ready to offer. On macOS, freed page buffers kept by the allocator show as 1.4 GB after scrolling, and PDF export copies each embedded font file. The real app is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). On macOS, freed page buffers kept by the allocator show as 1.4 GB after scrolling, and PDF export copies each embedded font file. The real app is not measured yet |
 
 ## The caret: Word's glide and fade
 
@@ -225,6 +225,12 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (font fallback offered upstream):** Pushed `font-fallback-coverage` to `origin`
+  and opened [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) against upstream's
+  main, with What it does, How (with the before/after measurements), Not in this pull request
+  and Checks. Upstream's main had not moved, and the branch merges cleanly. It overlaps open
+  #1972, which adds a check inside `file_face_names`: whichever lands second moves that check
+  onto `TableReader`, as the pull request says.
 - **2026-10-16 (font fallback fix, on a branch):** The first item of the memory plan, as an
   upstream-ready branch `font-fallback-coverage` cut from `upstream/main` (`86adfd3`) in the
   worktree `../wordcraft-font-fallback`, with upstream's progress rows. The system fallback asks
