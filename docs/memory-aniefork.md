@@ -38,7 +38,8 @@ rest is the record to work from. Changes made from it go upstream as pull reques
     Any Metal window costs about 295 MB of GPU memory on this Mac, even a native Swift one that
     only clears the screen. A blank eframe window costs about 490 MB.
   - **Pictures are the largest cost of WordCraft's own:** the picture document takes 277 MB more
-    than the text one, and 206 MB of that is decode buffers already freed but still counted.
+    than the text one. 206 MB of that is blocks already freed but still counted, left by opening
+    the file: it is there before any picture is drawn.
 
 ## Measurements
 
@@ -214,7 +215,9 @@ The one-line documents were run twice, and the runs agreed within 2 MB.
 - **Pictures are WordCraft's largest cost of its own.** The picture document takes 277 MB more
   than the text document once open:
   - 97 MB of large blocks in use, among them the 92 MB of encoded pictures;
-  - 206 MB of freed decode buffers still counted. Every picture is decoded at full resolution.
+  - 206 MB of freed blocks still counted. **These come from opening the file, not from
+    decoding:** the first page has no picture, so none had been drawn yet. This was first read
+    as decode buffers; the pictures branch ("What to do", item 2) showed otherwise.
 
 ## Where the memory goes
 
@@ -328,9 +331,25 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
    - **Not measured on Windows.** Expected there: an emoji loads only Segoe UI Emoji.
 2. **Pictures.** Decode at the size shown on screen. Drop the least-recently-used entries by
    bytes instead of emptying the cache. Prune media no step of the undo history uses. Check
-   limits before decoding (#1321). **The next candidate:** in the real app on macOS the picture
-   document takes 277 MB more than the text one, 206 MB of it freed full-resolution decode
-   buffers (see "The real app on macOS").
+   limits before decoding (#1321).
+   - **Done on the local branch `picture-decode-size`** (`be2d0b1`, from upstream `eae2421`),
+     the first two parts; not offered upstream yet. A picture is decoded halved as often as its
+     drawn size allows (box-averaged, premultiplied), and the cache drops its least recently
+     used entries. `cargo xtask ci` passes on it.
+   - **Measured in the real app on macOS,** paging through `pics-100p`, two runs each:
+
+     | Zoom | Peak, before → after | Settled, before → after |
+     |---|---|---|
+     | 100% | 1,069 → 933–936 MB | 875 → 919–923 MB |
+     | 50% | 1,078 → 968–970 MB | 875–890 → 944–947 MB |
+
+     The text document is unchanged (645 → 643 MB).
+   - **Peaks fall by 110–140 MB, but the settled footprint doesn't.** The decoded pictures are
+     4× smaller at 100% and 16× at 50% on a 2× screen. But the cache now stays full instead of
+     emptying and refilling, about 30 MB more live data. The settled number is dominated by
+     freed blocks the allocator keeps: 125–305 MB across runs of the same build.
+   - **The bigger target is opening the file.** It leaves 206 MB of freed blocks before any
+     picture is drawn (see "The real app on macOS"). Not traced yet.
 3. **Rasteriser.** Reuse one rasteriser context and thread pool across page renders, and reuse
    the page's pixel buffers instead of allocating new ones for each render. This is faster as
    well as smaller. In the real app on macOS it saves only about 50 MB of memory: the allocator

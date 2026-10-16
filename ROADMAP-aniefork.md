@@ -43,7 +43,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Next: pictures, +277 MB for the picture document. PDF export also copies each embedded font file. The real app on Windows is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a picture document leaves 206 MB of freed blocks, not traced yet. PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 
 ## The caret: Word's glide and fade
 
@@ -225,6 +225,18 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (pictures decoded at their drawn size, on a branch):** Items 1 and 2 of the
+  pictures plan, as the local branch `picture-decode-size` (`be2d0b1`, cut from upstream
+  `eae2421` in the worktree `../wordcraft-picture-memory`). Pictures are decoded halved as often
+  as their drawn size allows, and the decoded-media cache drops its least recently used entries
+  instead of emptying. Four new tests; `cargo xtask ci` passes.
+  - **Measured in the real app:** peaks fall by 110–140 MB when paging through the picture
+    document, but the settled footprint doesn't fall. The cache now stays full, and the
+    allocator's kept freed blocks vary by up to 180 MB between runs.
+  - **A correction:** the 206 MB of freed blocks the previous entry put down to decoding is
+    there right after opening, before any picture is drawn. It comes from opening the file.
+  - Not offered upstream: whether to, given these numbers, is the owner's call.
+  - `drive_app.py` now also prints `footprint`'s total in MB (vmmap rounds to 0.1 GB).
 - **2026-10-16 (the real app measured on macOS):** With the owner's OK, ran the desktop app in a
   profile of its own and drove it over the control channel with a new tool,
   `docs/memory-aniefork/drive_app.py`.

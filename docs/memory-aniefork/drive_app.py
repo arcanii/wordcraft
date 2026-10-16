@@ -64,4 +64,7 @@ if opts.get("--vmmap") == "1":
         out = subprocess.run(["vmmap", "--summary", pids[0]], capture_output=True, text=True).stdout
         keep = ("Physical footprint", "REGION TYPE", "IOAccelerator", "IOSurface", "Malloc Large", "Malloc Small", "owned unmapped", "TOTAL")
         print("\n".join(l for l in out.splitlines() if l.startswith(keep)))
+        # vmmap rounds the total to 0.1 GB; footprint gives it in MB.
+        total = subprocess.run(["footprint", pids[0]], capture_output=True, text=True).stdout
+        print("\n".join(l.strip() for l in total.splitlines() if "Footprint:" in l))
 call("app.quit")
