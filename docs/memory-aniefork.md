@@ -374,8 +374,8 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
 
    The file and the package's copies are freed once the document is read: about 184 MB, plus
    the parsed XML.
-   - **Done on the local branch `docx-open-shares-parts`** (`eb49c56`, from upstream `eae2421`),
-     with upstream's progress rows; not offered upstream yet. The package holds its parts as
+   - **Offered upstream as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441)**, from the branch
+     `docx-open-shares-parts` (`eb49c56`, from upstream `eae2421`), with upstream's progress rows. The package holds its parts as
      `Arc<Vec<u8>>`, the type the document keeps pictures in, and hands them over. One new test
      (the document's picture is the package's own bytes); `cargo xtask ci` passes.
    - **Measured in the real app, two runs each:** once open, 862–866 → 772 MB; freed blocks

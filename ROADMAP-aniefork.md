@@ -43,7 +43,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: fixed on the local branch `docx-open-shares-parts` (picture document, once open: 866 → 772 MB; not offered). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: offered as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441) (branch `docx-open-shares-parts`; picture document, once open: 866 → 772 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 
 ## The caret: Word's glide and fade
 
@@ -225,6 +225,12 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (DOCX opening fix offered upstream):** Pushed `docx-open-shares-parts` to
+  `origin` and opened [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441), with What it does, How
+  (with the before/after measurements), Not in this pull request and Checks. Upstream's main
+  had not moved, and the branch merges cleanly. It overlaps open #1928, which rewrites
+  `Reader::keep_part` around the line this changes: whichever lands second carries the
+  change over, as the pull request says. #2384 also touches the same files, elsewhere.
 - **2026-10-16 (opening a DOCX no longer copies its pictures, on a branch):** Traced the 206 MB
   of freed blocks the picture document leaves once open.
   - **Where it came from:** opening reads the whole file (92 MB), unzips every part into its
