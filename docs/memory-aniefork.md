@@ -220,6 +220,44 @@ The one-line documents were run twice, and the runs agreed within 2 MB.
     yet. This was first read
     as decode buffers; the pictures branch ("What to do", item 2) showed otherwise.
 
+## Editing a picture document on macOS
+
+Measured 2026-10-16 in the real app (upstream `eae2421`), with `drive_app.py --type 60`: a
+letter every quarter of a second for a minute. `measure_macos.py` now also reports the bytes the
+process wrote to disk.
+
+**Memory is not the problem.**
+- Typing into the picture document peaks at 911–916 MB, no higher than opening it.
+- After one save, so that AutoSave runs too, the peak is 979 MB: AutoSave builds the whole
+  `.docx` in memory.
+- The text document is unchanged by typing (peak 637 MB).
+
+**Disk writes are, and the recovery copy is never made:**
+
+| Situation | Written to disk in a minute | Recovery copy at the end |
+|---|---|---|
+| `pics-100p`, open, untouched | 0 MB | none needed |
+| `pics-100p`, typing | **1,280 MB**, 256 MB about every 12 s | **none** |
+| `text-100p`, typing | 1 MB | made |
+
+- **Why the copy fails:** every 10 s while there are unsaved changes, recovery
+  (`crates/engine/src/recovery/desktop.rs`) streams the document to a temporary file as JSON.
+  Pictures go in as number arrays, about 3.6 characters a byte. The writer stops at
+  `MAX_BYTES` (256 MB), and this document's pictures alone (92 MB) need about 330 MB. So the
+  write fails at exactly 256 MB and the temporary file is deleted.
+- **Why it repeats:** a failure clears the remembered revision, so the next tick tries again.
+  Typing changes the revision anyway.
+- **The result:** a document with more than about 70 MB of pictures gets no crash recovery,
+  and the SSD takes 256 MB every 10–12 s while its user types. The failure is kept in
+  recovery's `error` field; nothing went to the log.
+- **What a successful copy costs:** recovery reads the whole file back to compare it with the
+  document. So each copy that does succeed is written and read in full every 10 s while
+  someone types.
+- **Upstream's open #2101** stores pictures as base64 instead, about 1.33 characters a byte.
+  This document would then fit (about 125 MB). But recovery would still write and read back
+  about 125 MB every 10 s of typing, and documents with more than about 190 MB of pictures
+  would still fail.
+
 ## Where the memory goes
 
 From a read-only survey of upstream `daf8caa`. The key references were checked by hand. Line
@@ -360,7 +398,11 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
    `Arc`), and add a size cap next to the step cap.
 5. **Layout.** Release spare capacity and keep fewer stale entries (#1753 is upstream's start).
 6. **Recovery and AutoSave.** Write straight to the file instead of building copies, and compare
-   a hash instead of reading the snapshot back.
+   a hash instead of reading the snapshot back. **Measured 2026-10-16** ("Editing a picture
+   document on macOS"): for a document with more than about 70 MB of pictures the recovery copy
+   is never made, and each failed attempt writes 256 MB, every 10–12 s while its user types.
+   The fix that removes both: keep each picture once, as its own file in the recovery record,
+   and have the JSON name it. Snapshots would then be small and write only new pictures.
 7. **PDF export.** Hand Krilla the font database's shared bytes instead of a copy of each font
    file. This is a change to `craft_pdf::write::font` in storytold/craft-libs, which takes a
    `&[u8]` today, and to its caller in `crates/pdf/src/lib.rs`. Expected: the size of every

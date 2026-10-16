@@ -1,6 +1,7 @@
 """Run a program and report its memory on macOS: the kernel's peak and the final physical footprint
 (what Activity Monitor calls "Memory"; on Apple silicon it includes the process's GPU memory) and
-resident size, sampled every 50 ms, plus a coarse timeline. The macOS counterpart of measure.ps1.
+resident size, sampled every 50 ms, plus a coarse timeline and the bytes it read from and wrote
+to disk. The macOS counterpart of measure.ps1.
 
 Usage: python3 -I measure_macos.py <label> [NAME=VALUE ...] -- <program> [args ...]
 
@@ -11,6 +12,7 @@ import ctypes, os, subprocess, sys, tempfile, time
 
 RUSAGE_INFO_V4 = 4
 RESIDENT, FOOTPRINT, LIFETIME_MAX = 2 + 6, 2 + 7, 2 + 28  # u64 offsets past the 16-byte uuid
+DISK_READ, DISK_WRITTEN = 2 + 16, 2 + 17
 libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
 
 def rusage(pid):
@@ -58,6 +60,7 @@ while not exited():
 elapsed = time.monotonic() - start
 r = rusage(p.pid)  # a zombie until wait() reaps it
 peak = r[LIFETIME_MAX] if r is not None else 0
+disk = (r[DISK_READ], r[DISK_WRITTEN]) if r is not None else None
 p.wait()
 errfile.seek(0)
 err = errfile.read()
@@ -65,6 +68,8 @@ peak_note = f"peak {mb(peak)} MB" if peak else f"peak {mb(max_fp)} MB (sampled)"
 print(f"{label:<34} exit {p.returncode}  {peak_note}  sampled peak {mb(max_fp)} MB  "
       f"last {mb(last_fp)} MB  last RSS {mb(last_rss)} MB  ({elapsed:.1f} s)")
 print("  timeline (s:MB footprint): " + " ".join(timeline))
+if disk:
+    print(f"  disk: read {mb(disk[0])} MB, written {mb(disk[1])} MB")
 err = err.decode("utf-8", "replace").strip()
 if p.returncode != 0 and err:
     print("  stderr: " + err[:300])

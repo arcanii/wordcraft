@@ -225,6 +225,15 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (editing a picture document measured):** Typed into the picture document for
+  a minute in the real app (`drive_app.py --type`; `measure_macos.py` now reports disk writes).
+  - **Memory is fine:** the peak while typing is no higher than opening's.
+  - **Recovery isn't.** The document's JSON snapshot (pictures as number arrays, about 330 MB)
+    is over recovery's 256 MB cap, so every attempt fails at 256 MB, deletes its file and
+    retries. That's 1,280 MB written a minute, and no recovery copy at all.
+  - **Upstream's open #2101** (pictures as base64) would make this document fit, but not
+    larger ones, and every copy would still be written and read back in full.
+  - Recorded in `docs/memory-aniefork.md` ("Editing a picture document on macOS").
 - **2026-10-16 (DOCX opening fix offered upstream):** Pushed `docx-open-shares-parts` to
   `origin` and opened [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441), with What it does, How
   (with the before/after measurements), Not in this pull request and Checks. Upstream's main
