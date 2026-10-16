@@ -1,9 +1,10 @@
 # Memory use: findings (aniefork)
 
 Status: investigated 2026-10-15 on Windows, on upstream `daf8caa` (WordCraft 0.7.0); measured on
-macOS 2026-10-16, on the fork's `f424471` (upstream `86adfd3`, 50 commits later). Nothing has been
-changed yet; this is the record to work from. Changes made from it go upstream as pull requests,
-as [`AGENTS-aniefork.md`](../AGENTS-aniefork.md) says.
+macOS 2026-10-16, on the fork's `f424471` (upstream `86adfd3`, 50 commits later), headless and
+then in the real app. The first fix is offered upstream (font fallback, "What to do" item 1); the
+rest is the record to work from. Changes made from it go upstream as pull requests, as
+[`AGENTS-aniefork.md`](../AGENTS-aniefork.md) says.
 
 ## Summary
 
@@ -27,12 +28,17 @@ as [`AGENTS-aniefork.md`](../AGENTS-aniefork.md) says.
   - **Font fallback is about four times worse:** one emoji keeps about 530 MB, because every
     CJK family listed before Apple Color Emoji is installed on a Mac and large. One Chinese word
     keeps about 80 MB.
-  - **Scrolling looks as if it piles up memory:** after paging through 74 pages, Activity
-    Monitor shows 1.4 GB. WordCraft holds only about 150 MB of it. The rest is memory it has
-    already freed, which macOS's allocator keeps for reuse, because every page render allocates
-    and frees large buffers.
+  - **Headless, scrolling looked as if it piled up memory:** 1.4 GB after paging through 74
+    pages, most of it freed blocks macOS's allocator keeps. The real app does not do this: it
+    keeps 26 MB of freed blocks after the same paging. The harness's screenshots were the cause.
   - **PDF export copies each embedded font file whole:** another 75 MB for a Chinese word and
     183 MB for an emoji. This is the case on every platform.
+- **The real app on macOS** (see "The real app on macOS"):
+  - **588 MB with a 74-page text document open, but WordCraft's own share is about 100 MB.**
+    Any Metal window costs about 295 MB of GPU memory on this Mac, even a native Swift one that
+    only clears the screen. A blank eframe window costs about 490 MB.
+  - **Pictures are the largest cost of WordCraft's own:** the picture document takes 277 MB more
+    than the text one, and 206 MB of that is decode buffers already freed but still counted.
 
 ## Measurements
 
@@ -138,16 +144,15 @@ The one-line documents were run twice, and the runs agreed within 2 MB.
 
 **What is different on macOS:**
 
-- **Freed memory stays counted.** After paging through `text-100p`, `vmmap --summary` shows a
-  footprint of 1.4 GB. Of that, 1.2 GB is "Malloc Large (empty)": 247 large blocks that
-  WordCraft has freed and macOS's allocator keeps, still dirty, for reuse. WordCraft's own use
+- **Freed memory stays counted, in the harness.** After paging through `text-100p`,
+  `vmmap --summary` shows a footprint of 1.4 GB. Of that, 1.2 GB is "Malloc Large (empty)": 247
+  large blocks freed and kept, still dirty, by macOS's allocator for reuse. The process's own use
   is about 61 MB of small blocks, 24 MB of large ones and 61 MB of GPU textures.
-  - Every page render allocates the page's pixels and frees them again, along with the copies
-    and the rasteriser's buffers (see "Page images"). The allocator keeps them as they are freed.
   - macOS gives such memory back under memory pressure, so it is not a leak. But Activity
-    Monitor shows it as WordCraft's until then.
-  - Windows' heap returns blocks this large to the system when they are freed, which is likely
-    why Windows showed a flat 520 MB where macOS shows 1.4 GB.
+    Monitor counts it until then.
+  - **Most of it was the harness's.** Each screenshot allocates about 450 MB for a moment, and
+    the paging script takes 95 of them. The real app, paging the same way, keeps only 26 MB of
+    freed blocks (see "The real app on macOS").
 - **The fallback list is long on a Mac.** For a character no loaded font has, `system_fallback`
   goes through `SYSTEM_FALLBACKS` (`crates/fonts/src/fontdb.rs:504`) and loads every installed
   family before the one that covers it. A Mac has nearly all the CJK families on that list.
@@ -161,6 +166,55 @@ The one-line documents were run twice, and the runs agreed within 2 MB.
   `crates/pdf/src/write.rs:149`) copies the whole file of every face it embeds before handing it
   to Krilla: `convert` adds 72 MB over `info` for the Chinese word (PingFang) and 182 MB for the
   emoji (Apple Color Emoji). It is the same on Windows, where the files are smaller.
+
+## The real app on macOS
+
+**Setup:**
+- The same Mac, with a release build of the desktop app from upstream `86adfd3`'s code.
+- A profile of its own (`WORDCRAFT_PROFILE_DIR`), so the runs leave the owner's settings alone.
+- A 1440 × 900 window at 2×, opened on the test document, then driven over the control channel
+  by [`drive_app.py`](memory-aniefork/drive_app.py): page down, hold, `vmmap --summary`, quit.
+- Measured with `measure_macos.py`, as for the headless runs.
+
+**WordCraft:**
+
+| Situation | Footprint | GPU memory | Freed large blocks kept |
+|---|---|---|---|
+| `text-100p` open | 588 MB | 424 MB | 26 MB |
+| `text-100p`, after paging through all 74 pages | 650 MB | 473 MB | 26 MB |
+| The same, with `MallocLargeCache=0` | 597 MB | 473 MB | none |
+| `pics-100p` open | 865 MB | 424 MB | 206 MB |
+| `pics-100p`, after paging through all pages | 876 MB (peak 1,071 MB) | 473 MB | 125 MB |
+
+"GPU memory" is vmmap's "owned unmapped (graphics)": private Metal allocations.
+
+**Controls, to see whose the GPU memory is:**
+
+| Program | Footprint |
+|---|---|
+| A native Metal window in Swift that only clears the screen (no Rust, no wgpu) | 295 MB, steady |
+| A plain wgpu window that only clears the screen (no egui) | 458 MB at first, then 298 MB |
+| A blank eframe window, WordCraft's size and eframe features | about 490 MB, sometimes released to 43–79 MB after a few seconds |
+| A wgpu device with no window | 6 MB |
+| Dock, Terminal, Finder (private GPU memory only) | 1–3 MB each |
+
+**What this shows:**
+- **Most of the baseline isn't WordCraft's.** On this Mac (macOS 27.0.1, M3 Max), any Metal
+  window costs about 295 MB of GPU memory. eframe's window costs about 190 MB more than a plain
+  wgpu one; why was not traced. With the text document open, WordCraft's own share is about
+  100 MB.
+- **The window's own textures are small:** 15 MB with the document open, 54 MB after paging.
+  - A page image is 13 MB at 2×.
+  - The glyph sheet is 8192 × 32, 1 MB.
+  - The largest texture side is 8192, as in the harness.
+
+  This was listed with a temporary texture list added to `ui.inspect`, not committed.
+- **The headless gigabyte after paging was the harness's.** The real app keeps 26 MB of freed
+  blocks after paging, so reusing page buffers ("What to do", item 3) is worth about 50 MB.
+- **Pictures are WordCraft's largest cost of its own.** The picture document takes 277 MB more
+  than the text document once open:
+  - 97 MB of large blocks in use, among them the 92 MB of encoded pictures;
+  - 206 MB of freed decode buffers still counted. Every picture is decoded at full resolution.
 
 ## Where the memory goes
 
@@ -274,11 +328,14 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
    - **Not measured on Windows.** Expected there: an emoji loads only Segoe UI Emoji.
 2. **Pictures.** Decode at the size shown on screen. Drop the least-recently-used entries by
    bytes instead of emptying the cache. Prune media no step of the undo history uses. Check
-   limits before decoding (#1321).
+   limits before decoding (#1321). **The next candidate:** in the real app on macOS the picture
+   document takes 277 MB more than the text one, 206 MB of it freed full-resolution decode
+   buffers (see "The real app on macOS").
 3. **Rasteriser.** Reuse one rasteriser context and thread pool across page renders, and reuse
    the page's pixel buffers instead of allocating new ones for each render. This is faster as
-   well as smaller. On macOS it is also what stops the allocator from keeping a gigabyte of
-   freed page buffers after scrolling.
+   well as smaller. In the real app on macOS it saves only about 50 MB of memory: the allocator
+   keeps 26 MB of freed blocks after paging, and the app takes 597 MB with that cache off
+   against 650 MB with it. The gigabyte measured headless was the harness's.
 4. **Undo.** Share unchanged styles, numbering, comments and revisions between steps (behind
    `Arc`), and add a size cap next to the step cap.
 5. **Layout.** Release spare capacity and keep fewer stale entries (#1753 is upstream's start).
@@ -298,7 +355,7 @@ owner wants settings to be, could switch these together:
 |---|---|
 | Keep fewer page images ready (1 screen instead of 3), or a byte budget; tiles at high zoom | pages redraw when scrolling back |
 | Smaller picture cache | pictures are decoded again more often |
-| `MemoryHints::MemoryUsage` for wgpu (smaller blocks) | slightly slower allocation; needs a restart |
+| `MemoryHints::MemoryUsage` for wgpu (smaller blocks; DX12 and Vulkan only, Metal ignores it) | slightly slower allocation; needs a restart |
 | Cap the glyph sheet (a lower maximum texture side) | glyphs are drawn again more often; also caps page images unless they are tiled |
 
 ## Upstream context
@@ -314,12 +371,13 @@ owner wants settings to be, could switch these together:
 
 ## Still open
 
-- **The real app on a real GPU.** It needs a WordCraft window on the desktop, so ask the owner
-  first (the GPU caution in the build notes). Expect the baseline and the page images to differ
-  from the headless numbers. On macOS the headless runs already use the real GPU, but the
-  harness's picture cost (see "A measuring pitfall") hides the app's own peaks.
+- **The real app on Windows.** It needs a WordCraft window on the desktop, so ask the owner
+  first (the GPU caution in the build notes). On macOS it was measured on 2026-10-16, with the
+  owner's OK.
+- **eframe's 190 MB over a plain wgpu window** on macOS, and why it is sometimes released after
+  a few seconds: not traced. It would be a change in egui, not WordCraft.
 - **Undo** over a long editing session.
-- **Linux:** not measured. macOS was measured headless and through the CLI on 2026-10-16.
+- **Linux:** not measured.
 - **Craft-fonts in a release build:** their resident size is not measured.
 
 ## Measuring again
@@ -350,3 +408,11 @@ owner wants settings to be, could switch these together:
    ```
 
    `vmmap --summary <pid>` during a script's final hold shows where the footprint is.
+4. **The real app** (it opens a window, so ask the owner first). Build it with
+   `cargo build --release -p wordcraft`. Start it under the sampler with a profile of its own,
+   then drive it from a second command:
+
+   ```sh
+   python3 -I docs/memory-aniefork/measure_macos.py "app text-100p" WORDCRAFT_PROFILE_DIR=<profile> -- <wordcraft> --control 7987 <dir>/text-100p.docx &
+   python3 -I docs/memory-aniefork/drive_app.py 7987 <profile> --pages 95 --vmmap 1
+   ```

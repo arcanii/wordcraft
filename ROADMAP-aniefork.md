@@ -43,7 +43,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). On macOS, freed page buffers kept by the allocator show as 1.4 GB after scrolling, and PDF export copies each embedded font file. The real app is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Next: pictures, +277 MB for the picture document. PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 
 ## The caret: Word's glide and fade
 
@@ -225,6 +225,18 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (the real app measured on macOS):** With the owner's OK, ran the desktop app in a
+  profile of its own and drove it over the control channel with a new tool,
+  `docs/memory-aniefork/drive_app.py`.
+  - **The headless gigabyte was the harness's.** The real app keeps only 26 MB of freed blocks
+    after paging through 74 pages, so page-buffer reuse is worth about 50 MB.
+  - **The baseline is mostly not WordCraft's.** It takes 588 MB with the text document open,
+    but control programs show about 295 MB for any Metal window on this Mac (a Swift one
+    included) and about 190 MB more for eframe's window. WordCraft's own share is about 100 MB.
+  - **Pictures cost 277 MB** in the picture document, 206 MB of it freed full-resolution decode
+    buffers. That makes pictures the next fix.
+  - Recorded in `docs/memory-aniefork.md` ("The real app on macOS"), which also corrects the
+    earlier headless claims. A temporary texture list in `ui.inspect` was reverted.
 - **2026-10-16 (font fallback offered upstream):** Pushed `font-fallback-coverage` to `origin`
   and opened [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) against upstream's
   main, with What it does, How (with the before/after measurements), Not in this pull request
