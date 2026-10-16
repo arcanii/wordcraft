@@ -43,7 +43,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); nothing changed yet. First candidate: font fallback loads whole families before checking coverage (one emoji: +141 MB on Windows, +528 MB on macOS). On macOS, freed page buffers kept by the allocator show as 1.4 GB after scrolling, and PDF export copies each embedded font file. The real app is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is on the local branch `font-fallback-coverage` (`8c7bc50`; one emoji on macOS: 568 → 205 MB), ready to offer. On macOS, freed page buffers kept by the allocator show as 1.4 GB after scrolling, and PDF export copies each embedded font file. The real app is not measured yet |
 
 ## The caret: Word's glide and fade
 
@@ -225,6 +225,15 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (font fallback fix, on a branch):** The first item of the memory plan, as an
+  upstream-ready branch `font-fallback-coverage` cut from `upstream/main` (`86adfd3`) in the
+  worktree `../wordcraft-font-fallback`, with upstream's progress rows. The system fallback asks
+  the coverage index before loading a preferred family. The index now reads character maps
+  only, through a table reader shared with the font folder scan, so it covers files of any
+  size. Measured with `measure_macos.py`: one emoji 568 → 205 MB (engine), 642 → 300 MB
+  (interface); Latin and Chinese unchanged. Three new tests, one of which fails without the
+  check. `cargo xtask ci` passes on the branch (2,772 tests). Not pushed: offering it upstream
+  is the owner's call.
 - **2026-10-16 (memory use measured on macOS):** Asked whether the Windows measurements hold on
   macOS. Measured the merged fork headless (Metal, real GPU) and through the CLI with a new
   sampler, `docs/memory-aniefork/measure_macos.py`, which reads the kernel's peak footprint.

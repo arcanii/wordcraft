@@ -255,11 +255,23 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
 
 ### No downside: just do them (upstream pull requests)
 
-1. **Font fallback.** Check whether a family covers the character, using the coverage index the
-   font database already has, before loading it, and load only the face file needed instead of
-   the whole family. Expected: 60–150 MB less on Windows and 80–530 MB less on macOS for any
-   document with CJK text or emoji. **The first candidate:** the largest measured win, no
-   trade-off, and easy to show with the one-line documents.
+1. **Font fallback.** **Done on the branch `font-fallback-coverage`** (`8c7bc50`, cut from
+   upstream `86adfd3`; not offered upstream yet, which is the owner's call).
+   - **What changed:** the coverage index is asked before a preferred family loads, and a family
+     none of whose files has the character is skipped. The index now reads only each file's
+     character maps, so it also covers files over 40 MB, such as PingFang and Apple Color Emoji.
+   - **What didn't:** a family that has the character still loads whole, with all its styles.
+     Upstream relies on families loading complete, since a partial family resolves the wrong
+     face and caches it. The fallback order is unchanged.
+   - **Measured on macOS, before → after:**
+
+     | One-line document | Engine (`info`) | PDF (`convert`) | Interface (settled) |
+     |---|---|---|---|
+     | Emoji | 568 → 205 MB | 748 → 385 MB | 642 → 300 MB |
+     | All five scripts | 568 → 282 MB | 824 → 540 MB | 642 → 379 MB |
+     | Latin, or a Chinese word | unchanged | unchanged | unchanged |
+
+   - **Not measured on Windows.** Expected there: an emoji loads only Segoe UI Emoji.
 2. **Pictures.** Decode at the size shown on screen. Drop the least-recently-used entries by
    bytes instead of emptying the cache. Prune media no step of the undo history uses. Check
    limits before decoding (#1321).
