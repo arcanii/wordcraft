@@ -238,6 +238,7 @@ process wrote to disk.
 |---|---|---|
 | `pics-100p`, open, untouched | 0 MB | none needed |
 | `pics-100p`, typing | **1,280 MB**, 256 MB about every 12 s | **none** |
+| `pics-100p`, typing for 5 s, then nothing | **1,280 MB** | **none** |
 | `text-100p`, typing | 1 MB | made |
 
 - **Why the copy fails:** every 10 s while there are unsaved changes, recovery
@@ -245,8 +246,9 @@ process wrote to disk.
   Pictures go in as number arrays, about 3.6 characters a byte. The writer stops at
   `MAX_BYTES` (256 MB), and this document's pictures alone (92 MB) need about 330 MB. So the
   write fails at exactly 256 MB and the temporary file is deleted.
-- **Why it repeats:** a failure clears the remembered revision, so the next tick tries again.
-  Typing changes the revision anyway.
+- **Why it repeats:** a failure clears the remembered revision, so the next tick tries again,
+  whether or not the document changed. It goes on after typing stops, until the document is
+  saved or closed.
 - **The result:** a document with more than about 70 MB of pictures gets no crash recovery,
   and the SSD takes 256 MB every 10–12 s while its user types. The failure is kept in
   recovery's `error` field; nothing went to the log.
@@ -256,7 +258,11 @@ process wrote to disk.
 - **Upstream's open #2101** stores pictures as base64 instead, about 1.33 characters a byte.
   This document would then fit (about 125 MB). But recovery would still write and read back
   about 125 MB every 10 s of typing, and documents with more than about 190 MB of pictures
-  would still fail.
+  would still fail. Its companion #2102 spaces failed attempts out by their cost, but they go on.
+- **Reported upstream as [storytold/wordcraft#2456](https://github.com/storytold/wordcraft/issues/2456)** (2026-10-16), with
+  the proposal to keep each picture once per record as its own file, and mentioned on #2101.
+  Nothing is implemented: the approach is to be agreed first, since #2101 changes the same
+  format.
 
 ## Where the memory goes
 

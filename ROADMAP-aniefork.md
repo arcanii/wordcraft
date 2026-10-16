@@ -225,6 +225,12 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-16 (recovery reported upstream):** Opened [storytold/wordcraft#2456](https://github.com/storytold/wordcraft/issues/2456):
+  a document whose recovery snapshot is over the 256 MiB cap never gets a copy, and each failed
+  attempt writes 256 MB every 11–12 s, even after typing stops. It proposes keeping each binary
+  part once per record as its own file, and suggests not retrying a size failure until the
+  document changes. Mentioned on #2101 (base64 parts) and its companion #2102 (pacing). Nothing
+  implemented yet: waiting for the maintainers and #2101's author to agree an approach.
 - **2026-10-16 (editing a picture document measured):** Typed into the picture document for
   a minute in the real app (`drive_app.py --type`; `measure_macos.py` now reports disk writes).
   - **Memory is fine:** the peak while typing is no higher than opening's.
