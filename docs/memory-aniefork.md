@@ -216,7 +216,8 @@ The one-line documents were run twice, and the runs agreed within 2 MB.
   than the text document once open:
   - 97 MB of large blocks in use, among them the 92 MB of encoded pictures;
   - 206 MB of freed blocks still counted. **These come from opening the file, not from
-    decoding:** the first page has no picture, so none had been drawn yet. This was first read
+    decoding** ("What to do", item 8): the first page has no picture, so none had been drawn
+    yet. This was first read
     as decode buffers; the pictures branch ("What to do", item 2) showed otherwise.
 
 ## Where the memory goes
@@ -348,8 +349,8 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
      4× smaller at 100% and 16× at 50% on a 2× screen. But the cache now stays full instead of
      emptying and refilling, about 30 MB more live data. The settled number is dominated by
      freed blocks the allocator keeps: 125–305 MB across runs of the same build.
-   - **The bigger target is opening the file.** It leaves 206 MB of freed blocks before any
-     picture is drawn (see "The real app on macOS"). Not traced yet.
+   - **The bigger target was opening the file.** It left 206 MB of freed blocks before any
+     picture is drawn; see item 8.
 3. **Rasteriser.** Reuse one rasteriser context and thread pool across page renders, and reuse
    the page's pixel buffers instead of allocating new ones for each render. This is faster as
    well as smaller. In the real app on macOS it saves only about 50 MB of memory: the allocator
@@ -364,6 +365,26 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
    file. This is a change to `craft_pdf::write::font` in storytold/craft-libs, which takes a
    `&[u8]` today, and to its caller in `crates/pdf/src/lib.rs`. Expected: the size of every
    embedded font file less at each export (75 MB for PingFang, 183 MB for Apple Color Emoji).
+8. **Opening a DOCX.** Traced 2026-10-16 from the 206 MB of freed blocks the picture document
+   leaves once open. Opening goes in three steps:
+   - `io.rs` reads the whole file into memory (`std::fs::read`): 92 MB here.
+   - `Package::open` unzips every part into its own buffer: another 92 MB for the pictures.
+   - `Reader::media_for` (`crates/docx/src/read/mod.rs`) copies each picture into the document
+     (`Arc::new(bytes.to_vec())`), and so do the macro and embedded-object parts kept for saving.
+
+   The file and the package's copies are freed once the document is read: about 184 MB, plus
+   the parsed XML.
+   - **Done on the local branch `docx-open-shares-parts`** (`eb49c56`, from upstream `eae2421`),
+     with upstream's progress rows; not offered upstream yet. The package holds its parts as
+     `Arc<Vec<u8>>`, the type the document keeps pictures in, and hands them over. One new test
+     (the document's picture is the package's own bytes); `cargo xtask ci` passes.
+   - **Measured in the real app, two runs each:** once open, 862–866 → 772 MB; freed blocks
+     kept 206 → 118 MB; peak 915–932 → 821–823 MB. `wordcraft-cli info pics-100p` peaks at
+     319 → 231 MB. The text document is unchanged.
+   - **What's left** is mostly the whole file held in memory while it is unzipped, 92 MB here.
+     Unzipping straight from the file (`zip` reads any `Read + Seek`) would remove it. That
+     needs a file-based open path beside the bytes-based one in `io.rs`, so it is left for a
+     separate change.
 
 ### Trade-offs: candidates for an option
 
