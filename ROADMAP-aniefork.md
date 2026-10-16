@@ -225,6 +225,11 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-17 (the recovery issue split in two):** A reply on #2456, probably automated, asked
+  for one issue per problem. Posted [storytold/wordcraft#2624](https://github.com/storytold/wordcraft/issues/2624), a document with more than
+  about 70 MB of pictures never gets a copy (with the parts-as-files proposal), and
+  [storytold/wordcraft#2625](https://github.com/storytold/wordcraft/issues/2625), a failed snapshot is retried every interval, writing
+  up to 256 MB each time. #2456 links both and stays open.
 - **2026-10-16 (recovery reported upstream):** Opened [storytold/wordcraft#2456](https://github.com/storytold/wordcraft/issues/2456):
   a document whose recovery snapshot is over the 256 MiB cap never gets a copy, and each failed
   attempt writes 256 MB every 11–12 s, even after typing stops. It proposes keeping each binary

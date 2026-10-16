@@ -263,6 +263,9 @@ process wrote to disk.
   the proposal to keep each picture once per record as its own file, and mentioned on #2101.
   Nothing is implemented: the approach is to be agreed first, since #2101 changes the same
   format.
+- **Split on 2026-10-17,** as a reply on #2456 asked, into [storytold/wordcraft#2624](https://github.com/storytold/wordcraft/issues/2624)
+  (no copy for large documents, with the proposal) and [storytold/wordcraft#2625](https://github.com/storytold/wordcraft/issues/2625)
+  (failed attempts retried every interval). #2456 stays open and links both.
 
 ## Where the memory goes
 
