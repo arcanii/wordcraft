@@ -15,6 +15,11 @@ builds, and no feature kept for the fork's own sake. Before either of those, the
 removed and the fork must stop presenting itself as an ArtCraft product, as the sister fork of
 gridcraft (arcanii/DevCraft) did on 2026-10-14.
 
+**A split is planned, not started** (the owner, 2026-10-17): once DevCraft's development kits are
+stable and mature, they are to be ported here for automation, and the fork split from WordCraft
+as a product of its own, as DevCraft did. Until then nothing changes: the fork proposes changes
+upstream and keeps upstream's marks. `ROADMAP-aniefork.md` › Backlog has the item.
+
 At present the fork carries no code of its own: its one feature, the caret's glide, went upstream
 (storytold/wordcraft#570) and the fork's copy was removed. The rules below are for the next
 fork-only change; `git show 2648505:crates/ui-egui/src/aniefork/mod.rs` and its neighbours show
