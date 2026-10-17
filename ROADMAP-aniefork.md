@@ -45,6 +45,14 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 |---|---|---|
 | **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: offered as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441) (branch `docx-open-shares-parts`; picture document, once open: 866 → 772 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 
+## Backlog
+
+Wanted by the owner, not started. Each waits for the owner's go-ahead.
+
+| Item | What it would be | Before starting |
+|---|---|---|
+| **Automation in WordCraft, by development kits** (the owner, 2026-10-17: "we also want to include development kit functionality in wordcraft", "wordcraft should have some automation capability") | Automation that runs inside the app with logic of its own, as the sister fork DevCraft built for GridCraft (arcanii/DevCraft, `../DevCraft`; its design and phases are ADR-0001 in `docs/decisions-aniefork.md` and its `ROADMAP-aniefork.md`). That means a Development window with kits and projects: scripts and web panels that work on the open document through its commands, events (a document opened, changed, about to be saved), C built to WebAssembly, a Development server for agents, and projects trusted by their fingerprint. Word's own macros (VBA in a `.docm`, which WordCraft keeps and saves back but never runs) could be rebuilt as projects by an agent, as DevCraft does for Excel's. | **What exists to build on:** every action is a command (`CommandSpec`), so a script can do what a click does. Automation from outside already works: the control channel, the MCP server (`wordcraft-cli mcp`) and `wordcraft-cli run`. In the app there is a macro recorder: View › Macros, `tools.recordMacro` and `tools.macros`, which records and replays a list of commands and has no logic of its own. DevCraft's Development crate depends on nothing else in GridCraft, so parts may carry over. **A fork-only feature changes what this fork is:** upstream's brand licence lets it keep the ArtCraft marks only while it carries nothing for its own sake (`AGENTS-aniefork.md`), so either the marks come off first, as DevCraft did, or the work is shaped as upstream pull requests. That is the owner's call. |
+
 ## The caret: Word's glide and fade
 
 WordCraft's caret used to jump to its new place and blink hard on and off. Since
@@ -225,6 +233,10 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-17 (automation on the backlog):** The owner wants development kits in WordCraft, for
+  automation, as a backlog item. Recorded under "Backlog": what it would be (DevCraft's kits
+  for documents), what exists to build on (commands, the control channel, MCP, the macro
+  recorder), and that a fork-only feature would mean taking the ArtCraft marks off first.
 - **2026-10-17 (the recovery issue split in two):** A reply on #2456, probably automated, asked
   for one issue per problem. Posted [storytold/wordcraft#2624](https://github.com/storytold/wordcraft/issues/2624), a document with more than
   about 70 MB of pictures never gets a copy (with the parts-as-files proposal), and
