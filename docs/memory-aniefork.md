@@ -313,6 +313,23 @@ definitions, about 8 the comments and about 35 the parts (a rough count, tests l
 becomes a copy-on-write (`Arc::make_mut`); reading is unchanged. Styles alone are most of the
 cost, so they could go first.
 
+**Styles and lists: done on the local branch `undo-shares-styles`** (`52cac57`, from upstream
+`eae2421`). `Document::styles` and `Document::numbering` are `Arc`s, copied only by a command
+that changes them. The JSON form is unchanged. Changing them took 36 files (about 155 places,
+mostly mechanical). A new test checks that the steps share the sheet and lists, and that a style
+or list change copies once and undo restores the step's own copy. `cargo xtask ci` passes (2,770
+tests). Not offered upstream yet.
+
+| Document, 500 undo steps | Before | After | Per step |
+|---|---|---|---|
+| 600 styles + 60 lists | 1,180 MB | **21 MB** | 2,390 → 16 KB |
+| Plain text | 46 MB | 14 MB | 80 → 14 KB (the default style sheet was most of it) |
+| 300 comments | 123 MB | 91 MB | 233 → 168 KB |
+| Headers, footers and footnotes | 72 MB | 40 MB | 129 → 66 KB |
+| All of them | 1,283 MB | 123 MB | 2,593 → 217 KB |
+
+**Next:** the comments' and parts' maps, which are most of what remains.
+
 ## Where the memory goes
 
 From a read-only survey of upstream `daf8caa`. The key references were checked by hand. Line
@@ -452,7 +469,8 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
 4. **Undo.** Share unchanged styles, numbering, comments and revisions between steps (behind
    `Arc`), and add a size cap next to the step cap. **Measured 2026-10-17** ("Undo steps"):
    2.4 MB a step with 600 styles and 60 lists, 1.2 GB at the 500-step limit; sharing would take
-   it to about 80 KB a step. **The largest saving found so far.**
+   it to about 80 KB a step. **The largest saving found so far.** Styles and lists done on the
+   branch `undo-shares-styles`: 1,180 → 21 MB at the limit. Comments and parts are next.
 5. **Layout.** Release spare capacity and keep fewer stale entries (#1753 is upstream's start).
 6. **Recovery and AutoSave.** Write straight to the file instead of building copies, and compare
    a hash instead of reading the snapshot back. **Measured 2026-10-16** ("Editing a picture

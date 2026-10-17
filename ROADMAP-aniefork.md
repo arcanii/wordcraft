@@ -233,6 +233,15 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-17 (undo shares styles and lists, on a branch):** The local branch
+  `undo-shares-styles` (`52cac57`, cut from upstream `eae2421`, worktree
+  `../wordcraft-undo-styles`). `Document::styles` and `numbering` are now `Arc`s, copied on write.
+  - **Changed:** 36 files, mostly mechanical, fixed with the help of a script that wrapped each
+    write the compiler reported. One new test, and upstream's progress rows.
+  - **Checks:** `cargo xtask ci` passes (2,770 tests).
+  - **Measured, 500 undo steps:** 600 styles and 60 lists, 1,180 → 21 MB; plain text,
+    46 → 14 MB.
+  - Not offered upstream yet. Comments and parts are next.
 - **2026-10-17 (undo measured):** With synthetic documents from a new tool,
   `docs/memory-aniefork/make_undo_docs.py`, through the engine alone.
   - **The cost:** an undo step copies the whole style sheet, list definitions and comment
