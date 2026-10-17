@@ -233,6 +233,14 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-17 (undo measured):** With synthetic documents from a new tool,
+  `docs/memory-aniefork/make_undo_docs.py`, through the engine alone.
+  - **The cost:** an undo step copies the whole style sheet, list definitions and comment
+    metadata. That's 2.4 MB a step with 600 styles and 60 lists, 1.2 GB at the 500-step
+    limit, against 80 KB a step for plain text. Each style costs about 3.5 KB a step.
+  - **What sharing them between steps would save,** as DevCraft did for GridCraft: about
+    1.2 GB at the limit for such a document. The largest saving found so far.
+  - Recorded in `docs/memory-aniefork.md` ("Undo steps").
 - **2026-10-17 (the split waits for DevCraft):** The owner decided to wait until DevCraft's
   development kits are stable and mature, then port them over and split from WordCraft. Written
   into the backlog item and `AGENTS-aniefork.md`. Nothing changes until then.

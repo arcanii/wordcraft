@@ -267,6 +267,52 @@ process wrote to disk.
   (no copy for large documents, with the proposal) and [storytold/wordcraft#2625](https://github.com/storytold/wordcraft/issues/2625)
   (failed attempts retried every interval). #2456 stays open and links both.
 
+## Undo steps
+
+Measured 2026-10-17 through the engine alone (`wordcraft-cli run`, upstream `eae2421`), with the
+documents from [`make_undo_docs.py`](memory-aniefork/make_undo_docs.py). Each has the same 74
+pages of text and adds one kind of thing a real office document carries in quantity. An undo step
+was made by typing a word and moving the caret: typing alone is one step until something else
+happens. 500 steps is the history's limit (`MAX_UNDO`).
+
+| Document | Peak, no steps | Peak, 500 steps | Per step |
+|---|---|---|---|
+| Plain text | 7 MB | 46 MB | 80 KB |
+| + 600 styles, 376 latent entries, 60 lists of 9 levels | 13 MB | **1,180 MB** | **2,390 KB** |
+| + 300 comments | 9 MB | 123 MB | 233 KB |
+| + 20 sections with headers and footers, 300 footnotes | 9 MB | 72 MB | 129 KB |
+| + 300 tracked insertions | 7 MB | 48 MB | 84 KB |
+| All of them | 17 MB | **1,283 MB** | **2,593 KB** |
+
+It is the undo steps, not the typing: the same 500 insertions as one typing step peak at 19 MB on
+the styles document, and 500 caret moves alone at 14 MB.
+
+**Split by kind:** each paragraph or character style costs about 3.5–3.8 KB a step (400
+paragraph styles: 1,405 KB; 200 character styles: 764 KB), each list level about 0.5 KB (540
+levels: 356 KB), and the latent-style entries little (kept as one string).
+
+**Why:** every step keeps a `Document` clone (`Session::checkpoint`). The body's paragraphs,
+headers' and comments' text, and pictures are shared (`Arc`), but the clone copies in full:
+- the style sheet: every `Style` holds a whole `ParaProps` and `CharProps` inline, mostly empty
+  options, so about 3.5 KB each;
+- the list definitions;
+- the comments' and parts' maps and their metadata;
+- revisions, settings and the rest.
+
+**What sharing would save:** with the style sheet, the list definitions, the comments and the
+parts shared between steps (behind `Arc`, copied only when a command changes them, as DevCraft
+did for GridCraft's sheets in storytold/gridcraft#1643), a step would cost about what it costs
+in the plain document, 80 KB. That is mostly the paragraph being edited, which has to be kept.
+- All of them, at the 500-step limit: 1,283 MB → about 60 MB.
+- The styles document: 1,180 MB → about 50 MB.
+- A document from a template with about 150 styles and 10 lists (est.): about 600 KB a step,
+  300 MB at the limit → about 45 MB.
+
+**The size of the change:** about 23 places change the style sheet, about 50 the list
+definitions, about 8 the comments and about 35 the parts (a rough count, tests left out). Each
+becomes a copy-on-write (`Arc::make_mut`); reading is unchanged. Styles alone are most of the
+cost, so they could go first.
+
 ## Where the memory goes
 
 From a read-only survey of upstream `daf8caa`. The key references were checked by hand. Line
@@ -404,7 +450,9 @@ numbers will drift as upstream moves. Sizes marked "est." are estimates, not mea
    keeps 26 MB of freed blocks after paging, and the app takes 597 MB with that cache off
    against 650 MB with it. The gigabyte measured headless was the harness's.
 4. **Undo.** Share unchanged styles, numbering, comments and revisions between steps (behind
-   `Arc`), and add a size cap next to the step cap.
+   `Arc`), and add a size cap next to the step cap. **Measured 2026-10-17** ("Undo steps"):
+   2.4 MB a step with 600 styles and 60 lists, 1.2 GB at the 500-step limit; sharing would take
+   it to about 80 KB a step. **The largest saving found so far.**
 5. **Layout.** Release spare capacity and keep fewer stale entries (#1753 is upstream's start).
 6. **Recovery and AutoSave.** Write straight to the file instead of building copies, and compare
    a hash instead of reading the snapshot back. **Measured 2026-10-16** ("Editing a picture
