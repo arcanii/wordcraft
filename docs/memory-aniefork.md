@@ -318,7 +318,7 @@ cost, so they could go first.
 that changes them. The JSON form is unchanged. Changing them took 36 files (about 155 places,
 mostly mechanical). A new test checks that the steps share the sheet and lists, and that a style
 or list change copies once and undo restores the step's own copy. `cargo xtask ci` passes (2,770
-tests). Not offered upstream yet.
+tests). **Offered upstream as [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694).**
 
 | Document, 500 undo steps | Before | After | Per step |
 |---|---|---|---|

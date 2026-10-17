@@ -233,6 +233,10 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-17 (undo fix offered upstream):** Pushed `undo-shares-styles` and opened [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694)
+  with the before/after table. Upstream's main had not moved, and the branch merges cleanly.
+  About a dozen open PRs add writes to `doc.styles` or `doc.numbering` and will need
+  `Arc::make_mut` at those lines once it lands. The PR says so without naming them.
 - **2026-10-17 (undo shares styles and lists, on a branch):** The local branch
   `undo-shares-styles` (`52cac57`, cut from upstream `eae2421`, worktree
   `../wordcraft-undo-styles`). `Document::styles` and `numbering` are now `Arc`s, copied on write.
