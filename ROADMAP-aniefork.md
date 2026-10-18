@@ -233,6 +233,13 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-18 (the File page crash offered upstream):** The owner tried the release build of
+  `backstage-back-focus-crash` on Windows: the steps no longer end the program. Before opening
+  the pull request, a search found the same panic already reported as storytold/wordcraft#2726
+  (with the same focused id as in the owner's log), and an open general fix, #2742, that moves a
+  focus an update doesn't carry to the root. Asked, the owner chose to offer ours next to it:
+  [storytold/wordcraft#2856](https://github.com/storytold/wordcraft/pull/2856) fixes the cause
+  on this path and adds the first test that reproduces the panic from real clicks.
 - **2026-10-18 (merge of upstream 0.8.0; a crash found in it):** Merged upstream `f2e15cf`
   (WordCraft 0.8.0, 5 commits since `86adfd3`), no conflicts. `cargo xtask ci` stopped at two
   of upstream's tests that fail on Windows: `tests_color_glyphs::emoji_are_drawn_in_colour`
