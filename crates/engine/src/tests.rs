@@ -1340,6 +1340,37 @@ fn tables_commands() {
     assert!(s.run("table.merge", &json!({})).is_err());
 }
 
+#[test]
+fn delete_row_on_a_merge_start_promotes_the_cell_below() {
+    use wordcraft_doc::props::VMerge;
+    let vm = |s: &Session, r: usize| {
+        let t = s.doc.body.iter().find_map(|b| b.as_table()).unwrap();
+        t.rows[r].cells[0].props.vmerge
+    };
+    // Merge of two rows: the cell below becomes an ordinary cell.
+    let mut s = s();
+    run(&mut s, "insert.table", json!({"rows": 3, "cols": 2}));
+    run(&mut s, "caret.down", json!({}));
+    run(&mut s, "caret.up", json!({"extend": true}));
+    run(&mut s, "table.merge", json!({}));
+    run(&mut s, "caret.up", json!({}));
+    run(&mut s, "table.deleteRow", json!({}));
+    assert_eq!(vm(&s, 0), VMerge::None, "first row's cell continues a merge that no longer exists");
+    // Merge of three rows: the cell below restarts the merge.
+    let mut s = Session::new(wordcraft_doc::Document::new());
+    run(&mut s, "insert.table", json!({"rows": 4, "cols": 2}));
+    run(&mut s, "caret.down", json!({}));
+    run(&mut s, "caret.down", json!({}));
+    run(&mut s, "caret.up", json!({"extend": true}));
+    run(&mut s, "caret.up", json!({"extend": true}));
+    run(&mut s, "table.merge", json!({}));
+    run(&mut s, "caret.up", json!({}));
+    run(&mut s, "caret.up", json!({}));
+    run(&mut s, "table.deleteRow", json!({}));
+    assert_eq!(vm(&s, 0), VMerge::Restart);
+    assert_eq!(vm(&s, 1), VMerge::Continue);
+}
+
 fn cells(s: &Session) -> Option<((usize, usize), (usize, usize))> {
     s.cell_range().map(|x| (x.rows, x.cols))
 }
@@ -5796,7 +5827,11 @@ const PORTUGUESE_TEST_DIC: &str = "11\nsaudade\ncoração\ne\nele\ndisse\nnão\n
 fn dictionaries_folder_option_is_saved_searched_and_reported() {
     let dir = std::env::temp_dir().join(format!("wc-engine-dictionaries-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    for (name, aff, dic) in [("pl_PL", POLISH_TEST_AFF, POLISH_TEST_DIC), ("pt_BR", PORTUGUESE_TEST_AFF, PORTUGUESE_TEST_DIC)] {
+    for (name, aff, dic) in [
+        ("pl_PL", POLISH_TEST_AFF, POLISH_TEST_DIC),
+        ("pt_BR", PORTUGUESE_TEST_AFF, PORTUGUESE_TEST_DIC),
+        ("id_ID", INDONESIAN_TEST_AFF, INDONESIAN_TEST_DIC),
+    ] {
         std::fs::write(dir.join(format!("{name}.aff")), aff).unwrap();
         std::fs::write(dir.join(format!("{name}.dic")), dic).unwrap();
     }
@@ -5813,6 +5848,7 @@ fn dictionaries_folder_option_is_saved_searched_and_reported() {
     let file = |lang: &str| dicts.iter().find(|d| d["language"] == lang).map(|d| d["file"].clone());
     assert_eq!(file("pl"), Some(json!(dir.join("pl_PL.dic").to_string_lossy())));
     assert_eq!(file("pt"), Some(json!(dir.join("pt_BR.dic").to_string_lossy())));
+    assert_eq!(file("id"), Some(json!(dir.join("id_ID.dic").to_string_lossy())));
     // Polish text is checked against the folder's dictionary.
     run(&mut s, "document.setText", json!({"text": "rzeka płynie żeka"}));
     run(&mut s, "select.all", json!({}));
@@ -5859,6 +5895,49 @@ fn portuguese_proofing_through_the_review_commands() {
     run(&mut s, "review.addToDictionary", json!({"word": "coraçao"}));
     let left = run(&mut s, "review.issues", json!({}));
     assert_eq!(left.as_array().unwrap().len(), 1, "{left}");
+}
+
+fn indonesian_test_dictionary() {
+    wordcraft_proof::id::install_dictionary(INDONESIAN_TEST_AFF, INDONESIAN_TEST_DIC).unwrap();
+}
+
+// Hand-written synthetic fixture (no system dictionary data).
+const INDONESIAN_TEST_AFF: &str = "SET UTF-8\nFLAG UTF-8\nTRY aniekrumgtslhbdopy\nSFX A Y 1\nSFX A 0 an .\n";
+const INDONESIAN_TEST_DIC: &str = "8\nrumah\nsekolah\nanak\nbermain\ndi\nmakan/A\nsaya\nkami\n";
+
+/// Indonesian proofing (#498) through the same commands as Review, F7, Change and Add to
+/// Dictionary.
+#[test]
+fn indonesian_proofing_through_the_review_commands() {
+    indonesian_test_dictionary();
+    let mut s = s();
+    run(&mut s, "document.setText", json!({"text": "Saya di sekolha, anak anak bermain."}));
+    run(&mut s, "select.all", json!({}));
+    run(&mut s, "review.language", json!({"lang": "id_id", "default": true}));
+    assert_eq!(s.doc.styles.default_chr.lang.as_deref(), Some("id-ID"));
+    assert_eq!(run(&mut s, "format.state", json!({}))["lang"], "id-ID");
+    let issues = run(&mut s, "review.issues", json!({}));
+    let arr = issues.as_array().unwrap();
+    assert_eq!(arr.len(), 2, "{issues}");
+    assert!(arr.iter().all(|i| i["lang"] == "id"), "{issues}");
+    assert!(
+        arr.iter().any(|i| i["text"] == "sekolha" && i["kind"] == "spelling" && i["suggestions"].as_array().unwrap().iter().any(|s| s == "sekolah")),
+        "{issues}"
+    );
+    assert!(arr.iter().any(|i| i["text"] == "anak anak" && i["kind"] == "grammar" && i["suggestions"][0] == "anak-anak"), "{issues}");
+    run(&mut s, "caret.docStart", json!({}));
+    assert_eq!(run(&mut s, "review.spelling", json!({}))["text"], "sekolha");
+    run(&mut s, "review.applySuggestion", json!({"text": "sekolah"}));
+    assert!(text(&s).starts_with("Saya di sekolah,"), "{}", text(&s));
+    run(&mut s, "select.text", json!({"text": "sekolah"}));
+    run(&mut s, "text.insert", json!({"text": "zqkataidengine"}));
+    assert_eq!(run(&mut s, "review.issues", json!({})).as_array().unwrap().len(), 2);
+    run(&mut s, "review.addToDictionary", json!({"word": "zqkataidengine"}));
+    let left = run(&mut s, "review.issues", json!({}));
+    let left = left.as_array().unwrap();
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0]["kind"], "grammar");
+    assert_eq!(left[0]["lang"], "id");
 }
 
 /// Czech proofing through the same commands as Review, F7, Change and Add to Dictionary.
