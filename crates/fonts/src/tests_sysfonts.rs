@@ -356,6 +356,40 @@ fn coverage_holds_exactly_the_mapped_characters() {
 }
 
 #[test]
+fn coverage_stops_when_a_compaction_frees_too_little() {
+    // A crafted file whose faces interleave their code points made every mapping past the cap
+    // sort all the ranges again, freeing one: a compaction must free a quarter of the cap.
+    let cap = u32::try_from(Coverage::MAX_RANGES).unwrap();
+    let mut c = Coverage::default();
+    // One face maps every third code point, one range short of the cap; the next face maps the
+    // code points after them: the first fills the cap, the second compacts it and frees one.
+    assert!((0..cap - 1).all(|i| c.push(3 * i)));
+    assert!(c.push(1));
+    assert!(!c.push(4), "a compaction that frees one range ends the file's coverage");
+    // A compaction that frees enough goes on.
+    let mut c = Coverage::default();
+    assert!((0..cap / 2).all(|i| c.push(2 * i)) && (0..cap / 2).all(|i| c.push(2 * i + 1)));
+    assert!(c.push(cap + 1), "the compaction merges every range");
+    assert_eq!(&*c.finish(), &[(0, cap - 1), (cap + 1, cap + 1)]);
+}
+
+#[test]
+fn a_rescan_reads_a_replaced_font_files_character_maps_again() {
+    // A font updated in place since its character maps were read: what the update maps counts.
+    let dir = font_dir("replaced");
+    let db = FontDb::with_font_dirs(vec![dir.clone()]);
+    assert!(!db.family_maps(FAMILY, '\u{30000}'));
+    // The update is a few bytes longer, so it differs however coarse the file times are.
+    let mut data = mapping_u30000(FAMILY);
+    data.extend_from_slice(&[0; 4]);
+    std::fs::write(dir.join("Sysfont-Regular.ttf"), data).unwrap();
+    assert!(!db.family_maps(FAMILY, '\u{30000}'), "the index answers until the folders are scanned again");
+    db.load_system_fonts();
+    assert!(db.family_maps(FAMILY, '\u{30000}'));
+    assert_eq!(db.coverage.lock().unwrap().reads, 3, "the unchanged Bold file isn't read again");
+}
+
+#[test]
 fn coverage_of_installed_fonts_is_what_their_loaded_faces_map() {
     // Read from the character maps alone, as the whole file maps. Uses installed fonts when
     // there are some, collections among them.

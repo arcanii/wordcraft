@@ -399,7 +399,8 @@ struct CoverageIndex {
     generation: Option<u32>,
     /// The cataloged font files, sorted.
     files: Vec<IndexedFile>,
-    /// Font files whose character maps fallback searches read (each at most once).
+    /// Font files whose character maps fallback searches read (each once, and again only when
+    /// a rescan finds it replaced).
     reads: usize,
 }
 
@@ -412,6 +413,7 @@ impl CoverageIndex {
         let Some(file) = self.files.get_mut(i) else { return false };
         let ranges = file.ranges.get_or_insert_with(|| {
             *reads += 1;
+            file.stamp = file_stamp(&file.path);
             file_coverage(&file.path)
         });
         ranges_hold(ranges, cp)
@@ -424,8 +426,18 @@ struct IndexedFile {
     /// The code points the file's faces map, as sorted, disjoint inclusive ranges (`None` until
     /// its character maps are read; empty when they can't be).
     ranges: Option<Box<[(u32, u32)]>>,
+    /// The file's size and modification time when its character maps were read: a rescan
+    /// drops the ranges of a file replaced since.
+    stamp: Option<(u64, std::time::SystemTime)>,
     /// Loaded for a character it covers: its faces are searched as loaded fonts from then on.
     used: bool,
+}
+
+/// The size and modification time of the file at `path` (`None` when it can't be read).
+#[cfg(not(target_arch = "wasm32"))]
+fn file_stamp(path: &std::path::Path) -> Option<(u64, std::time::SystemTime)> {
+    let meta = std::fs::metadata(path).ok()?;
+    Some((meta.len(), meta.modified().ok()?))
 }
 
 /// Does `ranges` (sorted, disjoint, inclusive) hold `cp`?
@@ -452,23 +464,28 @@ impl Coverage {
 
     /// Add the code points `f` maps. False once a bound is reached: later faces are left out.
     fn add(&mut self, f: &skrifa::FontRef<'_>) -> bool {
-        for (cp, _) in f.charmap().mappings() {
-            if self.mappings >= Self::MAX_MAPPINGS {
-                return false;
-            }
-            self.mappings += 1;
-            match self.ranges.last_mut() {
-                Some(last) if last.1.checked_add(1) == Some(cp) => last.1 = cp,
-                Some(last) if last.0 <= cp && cp <= last.1 => {}
-                _ => {
-                    if self.ranges.len() >= Self::MAX_RANGES {
-                        self.compact();
-                        if self.ranges.len() >= Self::MAX_RANGES {
-                            return false;
-                        }
+        f.charmap().mappings().all(|(cp, _)| self.push(cp))
+    }
+
+    /// Add one mapped code point. False once a bound is reached.
+    fn push(&mut self, cp: u32) -> bool {
+        if self.mappings >= Self::MAX_MAPPINGS {
+            return false;
+        }
+        self.mappings += 1;
+        match self.ranges.last_mut() {
+            Some(last) if last.1.checked_add(1) == Some(cp) => last.1 = cp,
+            Some(last) if last.0 <= cp && cp <= last.1 => {}
+            _ => {
+                if self.ranges.len() >= Self::MAX_RANGES {
+                    self.compact();
+                    // A compaction must free a quarter of the cap, or a crafted file could make
+                    // every later mapping sort all the ranges again.
+                    if self.ranges.len() > Self::MAX_RANGES / 4 * 3 {
+                        return false;
                     }
-                    self.ranges.push((cp, cp));
                 }
+                self.ranges.push((cp, cp));
             }
         }
         true
@@ -1811,13 +1828,25 @@ impl FontDb {
         let mut index = self.coverage.lock().unwrap_or_else(|e| e.into_inner());
         let generation = self.catalog_gen.load(Ordering::Acquire);
         if index.generation != Some(generation) {
-            // A new scan (or the first search): keep what is known of files still installed.
+            // A new scan (or the first search): keep what is known of files still installed,
+            // unless a file was replaced since its character maps were read.
             let mut known: HashMap<std::path::PathBuf, IndexedFile> =
                 std::mem::take(&mut index.files).into_iter().map(|f| (f.path.clone(), f)).collect();
             let mut paths: Vec<std::path::PathBuf> = self.catalog.read().unwrap_or_else(|e| e.into_inner()).iter().map(|e| e.path.clone()).collect();
             paths.sort();
             paths.dedup();
-            index.files = paths.into_iter().map(|path| known.remove(&path).unwrap_or(IndexedFile { path, ranges: None, used: false })).collect();
+            index.files = paths
+                .into_iter()
+                .map(|path| match known.remove(&path) {
+                    Some(mut file) => {
+                        if file.ranges.is_some() && file.stamp != file_stamp(&file.path) {
+                            file.ranges = None;
+                        }
+                        file
+                    }
+                    None => IndexedFile { path, ranges: None, stamp: None, used: false },
+                })
+                .collect();
             index.generation = Some(generation);
         }
         index
