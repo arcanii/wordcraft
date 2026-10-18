@@ -104,7 +104,7 @@ Weights and evidence per area: [docs/target-app-parity.md](docs/target-app-parit
 | Spanish | es | partial | ~95% |
 | Hindi | hi | none | 0% |
 | Arabic | ar | none (document shaping and bidi work; no mirrored UI) | 0% |
-| French | fr | partial (interface) | ~95% |
+| French | fr | partial (interface complete, native-speaker reviewed; no proofing) | 100% (2,615 entries) |
 | Portuguese | pt-br (pt-PT none) | partial | ~95% |
 | Indonesian | id | none | 0% |
 | Japanese | ja | partial | ~95% |
@@ -146,6 +146,7 @@ Imported Word 97–2003 `.doc`/`.dot` files now ask for a supported DOCX target 
 | 2026-10-14 | ODT export writes sections (gap 19): every new-page section gets its own page layout and master page (the first stays "Standard"), named by its first paragraph or table with the page-numbering restart; a continuous section with columns is written as a columned `text:section`, so a landscape, two-column or restarted part survives a save as .odt |
 | 2026-10-14 | A bulleted or numbered list item that starts with a lower-case word no longer gets the grammar squiggle for a missing sentence capital (#1741): list items are often fragments, so the sentence-capital rule (every proofed language) skips the first word of a list paragraph (own or style numbering); later sentences in the item are still checked |
 | 2026-10-16 | The Spike, as in Word: Ctrl+F3 (⌘F3 on macOS) cuts the selection and adds it to the end of the Spike, each piece followed by a paragraph mark; Ctrl+Shift+F3 (⌘⇧F3) inserts everything collected, in order and with its formatting, and empties the Spike. The clipboard is left alone; each is one undo step. The Spike is the AutoText entry "Spike", so Insert › Quick Parts inserts it without emptying it. It lasts for the session (Word keeps it in Normal.dotm) |
+| 2026-10-16 | Update Field is offered on a table of contents after a save and reopen, and repeated save and update adds no blank line (#2182; the flow in that report already worked since #1197) |
 | 2026-10-16 | DOCX two lines in one and horizontal in vertical (`w:eastAsianLayout`: id, combine, brackets, vert, vertCompress) are read and kept on save, in runs and character styles, instead of being dropped. Layout doesn't apply them yet. |
 | 2026-10-16 | Read Aloud speaks Russian, Ukrainian, Greek, Arabic, Hebrew, CJK and Thai text with a voice for its language instead of spelling out letters (#1843): the sentence's language comes from its run's tag (`w:bidi` for right-to-left text) or, when that disagrees with the script, from its letters, even when English letters outnumber them; Windows reads the text as UTF-8 and picks an installed voice of that language, macOS `say -v` and Linux `espeak -v` get the same language. The user's own voice stays whenever it already speaks the language (English documents read exactly as before), and a voice espeak lacks falls back to the default voice instead of silence. Not run on Windows or macOS here. |
 | 2026-10-16 | Hint-reliant CJK fonts execute TrueType contour assembly; Windows DFKai-SB no longer loses strokes. Synthetic local-font regression; no font binaries bundled. |
@@ -166,7 +167,9 @@ Imported Word 97–2003 `.doc`/`.dot` files now ask for a supported DOCX target 
 | 2026-10-12 | Fields keep `w:dirty` through DOCX saves (#877): a begin marker flagged by a generator that couldn't compute a result (pandoc-style TOC placeholders) keeps the flag on open/save — as a buffered field or a range field — so Word still refreshes it on open; computing a result (Update Field, Update Table) clears it, like Word's F9 |
 | 2026-10-15 | Exact line spacing keeps the run font baseline around tall equations; automatic and minimum spacing still grow for math. |
 | 2026-10-16 | Zero-extent drawing anchors contribute no inline font height. |
+| 2026-10-16 | Control-channel keyboard and text input reaches the focused widget while the native window is inactive, without activating it; normal widget targets, dialogs and document protection remain in force (#2420) |
 |---|---|
+| 2026-10-16 | Save Changes gives assistive technology a named alert dialog with the loss warning and any save failure; visual layout and save policy unchanged (#1015). Native screen-reader verification remains pending. |
 | 2026-10-15 | The font family caches are bounded (4096 families for text, 1024 for math, names over 256 bytes aren't remembered), so a document naming thousands of missing fonts can't grow memory; equation fonts are looked up again after a font is added or removed instead of keeping the old choice (#1354) |
 | 2026-10-15 | AutoCorrect recognizes `-->` as `→` (#2223), respecting replacement settings and undo without changing paragraph-start arrow bullets. |
 | 2026-10-15 | Numbered headings (#1793): the Multilevel List gallery offers four lists linked to Heading 1–9 (1 / 1.1 / 1.1.1, Article I. / Section 1.01 / (a), I. / A. / 1., Chapter 1; `list.multilevelPreset`). The heading styles carry the numbers, so paragraphs already in a Heading style keep their style and level, any other selected paragraph (Normal, Quote, Title) becomes Heading 1 (checked in Word), a new Heading 2 is numbered 2.1 by itself and body text stays unnumbered; Numbering or typing `1. ` keeps a heading a heading |
@@ -187,6 +190,7 @@ Imported Word 97–2003 `.doc`/`.dot` files now ask for a supported DOCX target 
 | 2026-10-17 | DOCX glossary documents (building blocks) open into the model: Insert › Quick Parts and AutoText list and insert the document's own entries, and saving an entry with `"in": "document"` keeps it in the file (undoable). An untouched glossary is saved back byte for byte; an edited one is written from the model |
 | 2026-10-16 | Indonesian proofing (#498): id-ID spelling reads the installed Hunspell `id_ID` dictionary (`hunspell-id` on Debian/Ubuntu, LibreOffice's `dict-id`, or the Dictionaries folder), suggestions use its MAP/REP/TRY/KEY tables, generic repeated-word (offering `anak-anak`) and spacing checks explain in Indonesian; Review › Language, Set Proofing Language and File › Options › Proofing offer Indonesian. No dictionary data bundled; hyphenation keeps the English fallback; parity estimates unchanged |
 | 2026-10-17 | A table inserted in a right-to-left paragraph is a right-to-left table, like Word, so Tab moves right to left through its cells (#2634) |
+| 2026-10-16 | French interface catalog completed: 402 entries added (equation gallery, built-in style and table-style names, citation styles, paper sizes, watermarks, Bookmark / Go To / Print dialogs), 2,615 in all, with a native-speaker review of the terminology; no French proofing yet |
 | 2026-10-14 | DOCX row table border exceptions render and survive saving. Explicit cell borders win; a row exception does not change other rows. |
 | 2026-10-15 | Layout › Columns with text selected puts only that text in columns, as in Word (#2024): a continuous section break goes where the selection starts and one where it ends (splitting a paragraph there; none at the document's start or end, or where a section already begins or ends), and the columns go on the section between, one undo step; More Columns… offers "Selected text" and picks it. Before, the whole section took the columns |
 | 2026-10-14 | Tab stops edited on the ruler: the corner selector picks Left/Center/Right/Decimal/Bar, a click sets a stop (Alt skips the snap), dragging moves it with a guide line and position tooltip, dragging off the ruler clears it; markers draw per kind and mirror for RTL; one `para.tabs` call and one undo step per gesture |
@@ -471,6 +475,7 @@ Imported Word 97–2003 `.doc`/`.dot` files now ask for a supported DOCX target 
 | 2026-10-14 | trivial | Progress log: a list item's first word is not flagged for a missing capital (#1741) |
 | 2026-10-18 | trivial | #2445: pending Save As answers keep their originating document identity, so a replacement document is never written to an old picker destination; real Save-button and focused-editor shortcut controls verified |
 | 2026-10-16 | trivial | #2445: interactive Save on import-only .doc/.dot paths uses the existing DOCX Save As flow; cancel and failed writes keep the draft, and Close waits for a successful save. Explicit/script saves still report unsupported legacy output |
+| 2026-10-16 | trivial | Save Changes exposes an alert-dialog role, the document-specific question and loss/failure context to accessibility; full-app focus/ancestry regression. Native screen-reader verification remains pending. |
 | 2026-10-16 | trivial | Progress log: the Spike |
 | 2026-10-16 | trivial | Progress log: `w:eastAsianLayout` kept on save |
 | 2026-10-15 | trivial | Progress log: undrawable private-use list bullets show the level's default bullet (#1683) |
@@ -516,6 +521,7 @@ Imported Word 97–2003 `.doc`/`.dot` files now ask for a supported DOCX target 
 | 2026-10-15 | trivial | Additive paragraph spacing retains the full before-space after a section page break; ordinary overlapping spacing is unchanged. |
 | 2026-10-15 | trivial | Exact line spacing keeps the run font baseline around tall equations; automatic and minimum spacing still grow for math. |
 | 2026-10-16 | trivial | Zero-extent drawing anchors contribute no inline font height. Synthetic regressions. |
+| 2026-10-16 | trivial | Control keyboard/text input works in the inactive native window (#2420) |
 | 2026-10-14 | trivial | Progress log: row table border exceptions |
 | 2026-10-12 | minor | Czech proofing review: short-word splits rank after deletion, NOSUGGEST excludes suggestions while accepting typed forms, affix comments apply only to headers, ratios keep spaces and repeated-word messages use Czech quotes; synthetic engine end-to-end and latency checks |
 | 2026-10-12 | minor | Czech spelling from the installed Hunspell dictionary, runtime-table suggestions and generic checks; Czech interface writes cs-CZ documents; no Czech hyphenation patterns bundled; estimates unchanged |
