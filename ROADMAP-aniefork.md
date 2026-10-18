@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `f2e15cf` (WordCraft 0.8.0), 2026-10-18 |
-| Last merge of upstream | 2026-10-18: `f2e15cf`, 5 commits, no conflicts (earlier: `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `4a251d4` (WordCraft 0.8.0 and the commits after it), 2026-10-18 |
+| Last merge of upstream | 2026-10-18: `4a251d4`, 108 commits, no conflicts (earlier the same day: `f2e15cf`, 0.8.0; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file and `AGENTS-aniefork.md` differ from upstream |
 
 ## What the fork carries
@@ -233,6 +233,12 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-18 (second merge of the day):** Merged upstream `4a251d4` (108 commits after 0.8.0),
+  no conflicts. fmt, clippy, assets, layers and wasm pass. `cargo test --workspace
+  --no-fail-fast` passes 3,087 tests with the colour-emoji tests skipped; upstream added a third
+  one today (`emoji_with_text_effects_stay_drawn`, #2548), and all three fail on Windows for the
+  same reason as before. Without `--no-fail-fast` the run stops at `wordcraft-render` and the
+  crates after it go untested.
 - **2026-10-18 (the File page crash offered upstream):** The owner tried the release build of
   `backstage-back-focus-crash` on Windows: the steps no longer end the program. Before opening
   the pull request, a search found the same panic already reported as storytold/wordcraft#2726
