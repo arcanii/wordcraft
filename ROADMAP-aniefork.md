@@ -233,6 +233,15 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-19 (#2856 and #2441 merged upstream):** echelon merged
+  [storytold/wordcraft#2856](https://github.com/storytold/wordcraft/pull/2856), the File page crash
+  fix, on 2026-10-18 (merge `03a992a`, approved by FredApps), after merging main into it himself
+  and making the same change to #2530's new use of `widget_id` as the push of `78ca265`. The
+  DOCX opening fix #2441 was merged the same day. On the merged pull request the Windows `Print`
+  check failed for a reason of upstream's own: `apps/wordcraft/src/graphics.rs` has two
+  macOS-only functions (#2652) that are dead code on Windows under `-D warnings`. The input
+  method fix (CJK composition drawn, not boxes) waits on the branch `ime-composition-cjk-font`
+  for the owner's test.
 - **2026-10-18 (second merge of the day):** Merged upstream `4a251d4` (108 commits after 0.8.0),
   no conflicts. fmt, clippy, assets, layers and wasm pass. `cargo test --workspace
   --no-fail-fast` passes 3,087 tests with the colour-emoji tests skipped; upstream added a third
