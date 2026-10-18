@@ -93,6 +93,9 @@ pub struct CanvasState {
     /// Document faces added to the interface fonts so the input method's composition (#565) and a
     /// file name in the window caption can be drawn.
     pub(crate) ime_faces: Vec<std::sync::Arc<wordcraft_fonts::FontFace>>,
+    /// The document face the composition is drawn in, as last installed
+    /// ([`crate::theme::composition_family`]).
+    pub(crate) ime_face: Option<wordcraft_fonts::FaceRef>,
     pub want_focus: bool,
     pub context_issue: Option<serde_json::Value>,
     pub context_synonyms: Option<serde_json::Value>,
@@ -227,6 +230,7 @@ impl Default for CanvasState {
             render_ms: 0.0,
             ime_preedit: String::new(),
             ime_faces: Vec::new(),
+            ime_face: None,
             want_focus: true,
             context_issue: None,
             context_synonyms: None,
@@ -1526,19 +1530,40 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 let new = crate::theme::faces_for_preedit(&app.canvas.ime_preedit, &app.canvas.ime_faces, crate::theme::caption_char_covered, |c| {
                     wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
                 });
-                if !new.is_empty() {
+                // Word draws the composition in the font and size of the text it goes into: take the
+                // face, size and baseline the layout gives text typed here (not in turned text).
+                let typing = if c.width == 0.0 { layout.typing_style(&app.session.sel.focus, app.session.page_hint) } else { None };
+                let face = typing.as_ref().map(|(run, _)| run.face);
+                if !new.is_empty() || face != app.canvas.ime_face {
                     app.canvas.ime_faces.extend(new);
+                    app.canvas.ime_face = face;
                     crate::theme::install_fonts_language_extra(
                         ui.ctx(),
                         app.fonts_hans,
                         app.fonts_korean,
                         app.fonts_system_cjk,
                         &app.canvas.ime_faces,
+                        app.canvas.ime_face,
                     );
                     ui.ctx().request_repaint();
                 }
                 let caret_color = caret_color(app);
-                let g = painter.text(pos2(x, y1), egui::Align2::LEFT_BOTTOM, &app.canvas.ime_preedit, regular(c.height * scale * 0.8), caret_color);
+                // New fonts apply from the next frame; until the composition family is bound (or
+                // without a style run) the composition is drawn as before, in the interface font.
+                let family = crate::theme::composition_family();
+                let bound = ui.ctx().fonts(|f| f.definitions().families.contains_key(&family));
+                let (font, base) = match &typing {
+                    Some((run, base)) if bound && run.size.is_finite() && run.size > 0.0 => {
+                        (egui::FontId::new((run.size * scale).clamp(1.0, 400.0), family), Some(pr.min.y + base * scale))
+                    }
+                    _ => (regular(c.height * scale * 0.8), None),
+                };
+                let galley = painter.layout_no_wrap(app.canvas.ime_preedit.clone(), font, caret_color);
+                // The galley's first baseline sits on the line's baseline, as typed text would.
+                let baseline = galley.rows.first().and_then(|r| r.glyphs.first().map(|g| r.pos.y + g.pos.y)).unwrap_or(galley.size().y);
+                let top = base.map_or(y1 - galley.size().y, |b| b - baseline);
+                let g = Rect::from_min_size(pos2(x, top), galley.size());
+                painter.galley(g.min, galley, caret_color);
                 painter.line_segment([pos2(g.min.x, g.max.y), pos2(g.max.x, g.max.y)], Stroke::new(1.0, caret_color));
             }
         }
@@ -5177,6 +5202,43 @@ mod tests {
         assert!(h.state().want_system_cjk, "kana ask for the CJK UI font");
         assert!(h.state().fonts_system_cjk, "and the interface fonts are installed with it");
         assert!(!h.state().canvas.ime_faces.iter().any(|f| f.covers('\u{3068}')), "no document face is borrowed for it");
+    }
+
+    /// The composition is drawn in the font and size of the text it goes into, as Word draws it.
+    /// It was drawn in the interface font at 0.8 of the line's height, which made Latin letters look
+    /// larger and heavier than the same letters once committed.
+    #[test]
+    fn the_composition_takes_the_documents_font_and_size() {
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        app.run("document.setText", json!({"text": "Hello"})).unwrap();
+        app.run("select.all", json!({})).unwrap();
+        app.run("format.size", json!({"size": 20})).unwrap();
+        app.run("caret.docEnd", json!({})).unwrap();
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        for _ in 0..8 {
+            h.step();
+        }
+        let layout = h.state_mut().session.layout();
+        let (run, base) = layout.typing_style(&h.state().session.sel.focus, 0).expect("the run text typed here takes");
+        assert_eq!(run.size, 20.0, "the size of the text before the caret");
+        let caret = layout.caret(&h.state().session.sel.focus).expect("a caret");
+        assert!(base > caret.top && base < caret.top + caret.height, "the baseline lies within the caret: {base} in {caret:?}");
+        h.event(egui::Event::Ime(egui::ImeEvent::Preedit { text: "tottori".into(), active_range_chars: None }));
+        for _ in 0..3 {
+            h.step();
+        }
+        assert!(h.state().canvas.ime_face == Some(run.face), "the composition takes that face");
+        let first = h.ctx.fonts(|f| f.definitions().families.get(&crate::theme::composition_family()).and_then(|v| v.first().cloned()));
+        assert!(first.as_deref().is_some_and(|n| n.starts_with("composition ") && n.contains(run.face.family.as_str())), "{first:?}");
+        // Every font set the interface installs binds the family, so drawing with it can't panic.
+        assert!(crate::theme::font_definitions(false, false).families.contains_key(&crate::theme::composition_family()));
     }
 
     /// #1169: Space and Enter count as `Response::clicked` on the focused canvas, and
