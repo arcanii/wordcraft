@@ -908,6 +908,17 @@ impl Session {
         core.last_modified_by = self.author.clone();
         core.revision = core.revision.saturating_add(1);
     }
+    /// Whether typing is still collecting into one undo step (no other command since).
+    pub fn typing_open(&self) -> bool {
+        self.typing_open
+    }
+    /// Reopen the typing group when the last undo step is typing, so the keys typed next join
+    /// it: after an input method's rewrite was joined to it (`join_next_undo` closes the group).
+    pub fn continue_typing(&mut self) {
+        if self.undo_label() == Some("Typing") {
+            self.typing_open = true;
+        }
+    }
     /// Close an open typing group (caret moved, other command).
     pub fn close_typing(&mut self) {
         self.typing_open = false;
@@ -1343,8 +1354,18 @@ impl Session {
         self.sel.focus.story
     }
 
-    /// Formatting typing would use at the caret.
+    /// Formatting typing would use at the caret: the caret's, except run direction. New text
+    /// takes its direction from its own letters, as on screen, so Latin typed or inserted into
+    /// reopened Hebrew isn't saved as right-to-left; the DOCX writer marks right-to-left pieces
+    /// itself (#1543). The bidi language stays (it only applies to complex-script text).
     pub fn typing_props(&self) -> CharProps {
+        let mut c = self.caret_props();
+        c.rtl = None;
+        c
+    }
+
+    /// The caret's formatting, as Reveal Formatting shows it.
+    pub fn caret_props(&self) -> CharProps {
         if let Some(p) = &self.pending {
             return p.clone();
         }
