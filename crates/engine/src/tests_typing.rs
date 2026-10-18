@@ -357,6 +357,39 @@ fn smart_quotes_nested_and_opening_delimiters() {
     assert_eq!(s.doc.plain_text(StoryRef::Body), "«‘french’» „‘german’“");
 }
 
+/// #2223: the double-hyphen arrow is a replacement, not the existing arrow bullet.
+#[test]
+fn double_hyphen_arrow_autocorrect_preserves_typing_scope_and_undo() {
+    let mut s = typed("go --> ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Go → ");
+    assert_eq!(paras(&s)[0].1, None);
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Go --> ");
+    let s = typed("go --> here");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Go → here");
+    let s = typed("--> ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "→ ");
+    assert_eq!(paras(&s)[0].1, None);
+}
+
+#[test]
+fn double_hyphen_arrow_respects_autocorrect_preferences() {
+    for prefs in [json!({"enabled": false}), json!({"replaceText": false}), json!({"delete": "-->"})] {
+        let mut s = s();
+        run(&mut s, "tools.autocorrect", prefs);
+        typ(&mut s, "go --> here");
+        assert!(s.doc.plain_text(StoryRef::Body).ends_with(" --> here"));
+    }
+    let mut s = s();
+    run(&mut s, "review.language", json!({"lang": "pl-PL", "default": true}));
+    typ(&mut s, "go --> here");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Go → here");
+    let mut s = self::s();
+    run(&mut s, "tools.autocorrect", json!({"add": {"from": "-->", "to": "custom"}}));
+    typ(&mut s, "go --> here");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Go custom here");
+}
+
 /// #835: the English replacement list applies only to English text. Polish "i" ("and") stays
 /// lowercase; symbols still change; English and untagged text still get "I".
 #[test]
@@ -1384,5 +1417,195 @@ fn delete_removes_a_section_break_on_the_last_paragraph() {
         let sections = s.doc.sections();
         assert_eq!(sections.len(), 2, "{then:?}: undo brings the break back");
         assert_eq!((sections[0].1.headers.default, sections[1].1.headers.default), (header, None), "{then:?}: undo");
+    }
+}
+
+fn first_letter_list(s: &Session) -> Vec<String> {
+    s.prefs.autocorrect.exceptions.clone()
+}
+
+/// Undoing an automatic sentence capital adds the word before it to the First Letter exceptions
+/// (Word: "Automatically add words to list", #1857); typing the line again isn't capitalised.
+#[test]
+fn undoing_a_sentence_capital_adds_a_first_letter_exception() {
+    let mut s = typed("hello there. world ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Hello there. World ");
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Hello there. world ");
+    assert_eq!(first_letter_list(&s), ["there."]);
+    run(&mut s, "text.newParagraph", json!({}));
+    typ(&mut s, "x there. world ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Hello there. world \nX there. world ");
+}
+
+#[test]
+fn backspacing_a_sentence_capital_and_retyping_adds_a_first_letter_exception() {
+    let mut s = typed("hello there. world ");
+    typ(&mut s, "\u{8}\u{8}\u{8}\u{8}\u{8}\u{8}world ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Hello there. world ");
+    assert_eq!(first_letter_list(&s), ["there."]);
+}
+
+#[test]
+fn automatic_exceptions_can_be_turned_off() {
+    let mut s = typed("");
+    run(&mut s, "tools.autocorrect", json!({"autoAddFirstLetter": false}));
+    typ(&mut s, "hello there. world ");
+    run(&mut s, "edit.undo", json!({}));
+    assert!(first_letter_list(&s).is_empty());
+    let mut s = typed("");
+    run(&mut s, "tools.autocorrect", json!({"autoAddFirstLetter": false}));
+    typ(&mut s, "hello there. world \u{8}\u{8}\u{8}\u{8}\u{8}\u{8}world ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "Hello there. World ");
+    assert!(first_letter_list(&s).is_empty());
+}
+
+#[test]
+fn undoing_a_replacement_adds_no_exception() {
+    let mut s = typed("so teh ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "So the ");
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "So teh ");
+    assert!(first_letter_list(&s).is_empty());
+    assert!(s.prefs.autocorrect.entries.is_empty() && s.prefs.autocorrect.removed.is_empty());
+    typ(&mut s, "and teh ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "So teh and the ");
+}
+
+/// Checked in Word for Mac: the same rule as First Letter.
+#[test]
+fn undoing_an_initial_caps_fix_adds_an_initial_caps_exception() {
+    let mut s = typed("so TWo ");
+    run(&mut s, "edit.undo", json!({}));
+    assert_eq!(s.prefs.autocorrect.initial_caps_exceptions, ["TWo"]);
+    typ(&mut s, "and TWo ");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "So TWo and TWo ");
+}
+
+#[test]
+fn undoing_other_edits_after_a_capital_adds_no_exception() {
+    // Typing more, then one Undo, and a second Undo that reverses the capital's step later.
+    let mut s = typed("hello there. world more text");
+    run(&mut s, "edit.undo", json!({}));
+    assert!(first_letter_list(&s).is_empty());
+    run(&mut s, "edit.undo", json!({}));
+    assert!(first_letter_list(&s).is_empty(), "only the Undo that reverses the capital itself counts");
+}
+
+#[test]
+fn a_full_undo_history_does_not_match_later_undos() {
+    let mut s = typed("");
+    for _ in 0..300 {
+        typ(&mut s, "x\n");
+    }
+    typ(&mut s, "hello there. world more text\nand more");
+    run(&mut s, "edit.undo", json!({}));
+    assert!(first_letter_list(&s).is_empty());
+}
+
+#[test]
+fn a_new_document_forgets_the_capital() {
+    let mut s = typed("hello there. world ");
+    run(&mut s, "file.new", json!({}));
+    typ(&mut s, "abc\ndef\nghi\njkl");
+    for _ in 0..8 {
+        let _ = s.run("edit.undo", &json!({}));
+    }
+    assert!(first_letter_list(&s).is_empty());
+}
+
+#[test]
+fn an_overlong_word_is_not_added_as_an_exception() {
+    let mut s = typed(&format!("hi {}. world ", "a".repeat(5000)));
+    run(&mut s, "edit.undo", json!({}));
+    assert!(first_letter_list(&s).is_empty());
+}
+
+/// Each body paragraph's laid-out number (`None`: none) and its style.
+fn numbers(s: &mut Session) -> Vec<(Option<String>, String)> {
+    let l = s.layout();
+    let labels: Vec<Option<String>> = l
+        .pages
+        .iter()
+        .flat_map(|p| &p.items)
+        .filter_map(|i| {
+            if let wordcraft_layout::Placed::Lines { para, l0: 0, .. } = i { Some(para.label.as_ref().map(|lb| lb.text.clone())) } else { None }
+        })
+        .collect();
+    let styles = s.doc.body.iter().filter_map(|b| b.as_para()).map(|p| p.props.style.clone().unwrap_or_else(|| "Normal".into()));
+    labels.into_iter().zip(styles).collect()
+}
+
+fn num(label: Option<&str>, style: &str) -> (Option<String>, String) {
+    (label.map(str::to_string), style.to_string())
+}
+
+/// #1793 (Word for Mac, 2026-10-15): after the "1 / 1.1 / 1.1.1" heading list, a new Heading 2
+/// typed after "Three" is numbered 2.1 on its own; the body text after it stays unnumbered.
+#[test]
+fn a_new_heading_after_a_heading_linked_list_is_numbered() {
+    let mut s = s();
+    typ(&mut s, "One");
+    run(&mut s, "para.heading1", json!({}));
+    typ(&mut s, "\nTwo");
+    run(&mut s, "para.heading2", json!({}));
+    typ(&mut s, "\nThree");
+    run(&mut s, "para.heading1", json!({}));
+    // The caret in "Three" (a Heading 1, the list's first level).
+    run(&mut s, "list.multilevelPreset", json!({"preset": "headings"}));
+    run(&mut s, "caret.docEnd", json!({}));
+    typ(&mut s, "\n");
+    run(&mut s, "para.heading2", json!({}));
+    typ(&mut s, "Four\nBody");
+    assert_eq!(
+        numbers(&mut s),
+        [num(Some("1"), "Heading1"), num(Some("1.1"), "Heading2"), num(Some("2"), "Heading1"), num(Some("2.1"), "Heading2"), num(None, "Normal")]
+    );
+}
+
+/// #1793: plain Numbering on a Heading 1 numbers it "1." and keeps Heading 1 (Word: "1. One").
+#[test]
+fn numbering_a_heading_keeps_the_heading_style() {
+    let mut s = s();
+    typ(&mut s, "One");
+    run(&mut s, "para.heading1", json!({}));
+    run(&mut s, "para.numbering", json!({}));
+    assert_eq!(numbers(&mut s), [num(Some("1."), "Heading1")]);
+}
+
+/// #1793: applying a heading style that carries list numbering numbers the paragraph, even one
+/// whose numbering was switched off before.
+#[test]
+fn applying_a_numbered_heading_style_numbers_the_paragraph() {
+    let mut s = s();
+    typ(&mut s, "One");
+    run(&mut s, "para.heading1", json!({}));
+    run(&mut s, "list.multilevelPreset", json!({"preset": "headings"}));
+    typ(&mut s, "\nTwo");
+    run(&mut s, "para.numbering", json!({}));
+    run(&mut s, "para.numbering", json!({"off": true}));
+    assert_eq!(numbers(&mut s)[1].0, None);
+    run(&mut s, "para.heading2", json!({}));
+    assert_eq!(numbers(&mut s), [num(Some("1"), "Heading1"), num(Some("1.1"), "Heading2")]);
+}
+
+/// #1793: "1. " typed at the start of a heading numbers it and keeps the heading style; only
+/// body text becomes List Paragraph.
+#[test]
+fn typing_1_dot_in_a_heading_keeps_the_heading_style() {
+    let mut s = s();
+    run(&mut s, "para.heading1", json!({}));
+    typ(&mut s, "1. One\n");
+    run(&mut s, "para.normal", json!({}));
+    typ(&mut s, "1. Body");
+    assert_eq!(numbers(&mut s), [num(Some("1."), "Heading1"), num(Some("1."), "ListParagraph")]);
+    for (style, keys) in [("Heading2", "a) Part"), ("Subtitle", "1. Item")] {
+        let mut s = self::s();
+        run(&mut s, "para.style", json!({"style": style}));
+        typ(&mut s, keys);
+        let got = numbers(&mut s);
+        assert_eq!(got.len(), 1);
+        assert!(got[0].0.is_some(), "{style}: a list");
+        assert_eq!(got[0].1, style);
     }
 }
