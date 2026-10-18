@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `86adfd3` (WordCraft 0.7.0 and the commits after it), 2026-10-16 |
-| Last merge of upstream | 2026-10-16: `86adfd3`, 306 commits, no conflicts (earlier: `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `f2e15cf` (WordCraft 0.8.0), 2026-10-18 |
+| Last merge of upstream | 2026-10-18: `f2e15cf`, 5 commits, no conflicts (earlier: `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file and `AGENTS-aniefork.md` differ from upstream |
 
 ## What the fork carries
@@ -233,6 +233,16 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-18 (merge of upstream 0.8.0; a crash found in it):** Merged upstream `f2e15cf`
+  (WordCraft 0.8.0, 5 commits since `86adfd3`), no conflicts. `cargo xtask ci` stopped at two
+  of upstream's tests that fail on Windows: `tests_color_glyphs::emoji_are_drawn_in_colour`
+  and `emoji_keep_their_colours_on_a_dark_page` expect both 🧠 and ✅ in the colour emoji font,
+  but Windows' fallback finds ✅ first in Segoe UI Symbol, which is monochrome. The fork changes
+  nothing in that crate. With those two skipped, all other tests (2,758), assets, layers and wasm
+  pass. The owner found that 0.8.0 vanishes after Blank document, File, then the back arrow;
+  the log in `%APPDATA%\WordCraft\logs` had AccessKit's panic "Focused ID … is not in the node
+  list". Reproduced by a test and fixed on the branch `backstage-back-focus-crash` (from
+  upstream `f2e15cf`), not yet offered upstream.
 - **2026-10-17 (undo fix offered upstream):** Pushed `undo-shares-styles` and opened [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694)
   with the before/after table. Upstream's main had not moved, and the branch merges cleanly.
   About a dozen open PRs add writes to `doc.styles` or `doc.numbering` and will need
