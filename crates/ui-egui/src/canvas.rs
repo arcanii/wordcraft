@@ -1516,12 +1516,16 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             if !app.canvas.ime_preedit.is_empty() {
                 // The composition is interface text, but it may be in a script the interface fonts lack
                 // (Bangla, Thai ...): borrow the document fonts' fallback faces, or it draws as boxes (#565).
-                let new = crate::theme::faces_for_preedit(
-                    &app.canvas.ime_preedit,
-                    &app.canvas.ime_faces,
-                    |c| (c as u32) < 0x250,
-                    |c| wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX),
-                );
+                // CJK uses the CJK UI font, as the window caption does: the faces a document falls back
+                // to for it are mostly too large to borrow (Microsoft YaHei on Windows is 19 MB), and a
+                // build without craft-fonts has no CJK interface face of its own.
+                if !app.want_system_cjk && app.canvas.ime_preedit.chars().any(wordcraft_fonts::is_cjk) {
+                    app.want_system_cjk = true;
+                    ui.ctx().request_repaint();
+                }
+                let new = crate::theme::faces_for_preedit(&app.canvas.ime_preedit, &app.canvas.ime_faces, crate::theme::caption_char_covered, |c| {
+                    wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
+                });
                 if !new.is_empty() {
                     app.canvas.ime_faces.extend(new);
                     crate::theme::install_fonts_language_extra(
@@ -5143,6 +5147,36 @@ mod tests {
         // Hostile numbers never panic.
         let _ = collapse_white_space(&rects, &[(f32::NAN, f32::INFINITY), (-1e9, 1e9)], f32::NAN, f32::NAN);
         let _ = collapse_white_space(&[], &[], 1.0, 1.0);
+    }
+
+    /// A Japanese, Chinese or Korean composition is drawn with the CJK UI font, as the window
+    /// caption is. It borrowed a document face instead, but only one of 16 MB or less, and on
+    /// Windows Japanese falls back to Microsoft YaHei (19 MB): without craft-fonts' CJK faces
+    /// built in, the composition was a box until it was committed.
+    #[test]
+    fn a_cjk_composition_uses_the_cjk_ui_font() {
+        let app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        for _ in 0..8 {
+            h.step();
+        }
+        assert!(h.state().canvas.focused, "the canvas takes focus when the window opens");
+        assert!(!h.state().want_system_cjk, "nothing CJK on screen yet");
+        h.event(egui::Event::Ime(egui::ImeEvent::Preedit { text: "\u{3068}\u{3063}\u{3068}\u{308A}".into(), active_range_chars: None }));
+        for _ in 0..3 {
+            h.step();
+        }
+        assert_eq!(h.state().canvas.ime_preedit, "\u{3068}\u{3063}\u{3068}\u{308A}");
+        assert!(h.state().want_system_cjk, "kana ask for the CJK UI font");
+        assert!(h.state().fonts_system_cjk, "and the interface fonts are installed with it");
+        assert!(!h.state().canvas.ime_faces.iter().any(|f| f.covers('\u{3068}')), "no document face is borrowed for it");
     }
 
     /// #1169: Space and Enter count as `Response::clicked` on the focused canvas, and
