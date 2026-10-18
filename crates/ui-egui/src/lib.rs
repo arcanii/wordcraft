@@ -2137,7 +2137,7 @@ impl WordApp {
             // Control input belongs to this window's remembered widget even while another app
             // is active. Give only this input frame egui focus, without requesting OS activation.
             raw.focused = true;
-            if let (Some(ctx), Some(id)) = (&self.ctx, self.canvas.widget_id) {
+            if let (Some(ctx), Some((id, _))) = (&self.ctx, self.canvas.widget_id) {
                 // Canvas keys run before painting updates last frame's native focus flag.
                 self.canvas.focused = ctx.memory(|m| m.has_focus(id));
             }
