@@ -241,8 +241,11 @@ Newest first.
   the fork's test builds don't. Fixed on `ime-composition-cjk-font` (the CJK UI font for a CJK
   composition, and the text's own face, size and baseline through a new `DocLayout::typing_style`),
   offered as [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022) after
-  merging main into it. Clippy on main fails on Windows at two macOS-only functions in
-  `apps/wordcraft/src/graphics.rs` (#2652); the pull request says so.
+  merging main into it. Its Windows `Print` check failed on main's own clippy error, two
+  macOS-only functions in `apps/wordcraft/src/graphics.rs` (#2652), which upstream fixed in
+  #3006. Main (`117aea3`) was merged in again (`e44e2fb`, no conflicts). fmt, clippy
+  `-D warnings` on the whole workspace, the ui-egui and layout tests (1,162), layers and wasm
+  pass. Pushed, the description's checks updated, Auto-fix on.
 - **2026-10-19 (#2856 and #2441 merged upstream):** echelon merged
   [storytold/wordcraft#2856](https://github.com/storytold/wordcraft/pull/2856), the File page crash
   fix, on 2026-10-18 (merge `03a992a`, approved by FredApps), after merging main into it himself
