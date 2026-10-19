@@ -233,6 +233,16 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-19 (input method composition offered upstream):** Found by the owner with the
+  Microsoft Japanese IME in a test build: the composition showed a box until committed, and
+  then Latin letters in it looked bold. Causes: the composition borrows document faces only up
+  to 16 MB, and Windows' fallback for kana is Microsoft YaHei (19 MB); and it was drawn in Inter at
+  0.8 of the line's height. Release builds hide the first, since they embed craft-fonts' CJK faces;
+  the fork's test builds don't. Fixed on `ime-composition-cjk-font` (the CJK UI font for a CJK
+  composition, and the text's own face, size and baseline through a new `DocLayout::typing_style`),
+  offered as [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022) after
+  merging main into it. Clippy on main fails on Windows at two macOS-only functions in
+  `apps/wordcraft/src/graphics.rs` (#2652); the pull request says so.
 - **2026-10-19 (#2856 and #2441 merged upstream):** echelon merged
   [storytold/wordcraft#2856](https://github.com/storytold/wordcraft/pull/2856), the File page crash
   fix, on 2026-10-18 (merge `03a992a`, approved by FredApps), after merging main into it himself
