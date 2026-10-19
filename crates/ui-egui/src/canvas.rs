@@ -1590,11 +1590,17 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 // without a style run) the composition is drawn as before, in the interface font.
                 let family = crate::theme::composition_family();
                 let bound = ui.ctx().fonts(|f| f.definitions().families.contains_key(&family));
+                // egui draws each glyph into its font atlas and panics on one wider than the atlas
+                // (1,638-point text at 500% is about 11,000 points): keep the composition's glyphs
+                // within a quarter of the atlas side, and at most 1,024 pixels, as each glyph stays
+                // in the atlas. Larger text gets a smaller composition.
+                let most = (max_tex / 4.0).min(1024.0) / ppp;
+                let size = |s: f32| s.min(most).max(1.0);
                 let (font, base) = match &typing {
                     Some((run, base)) if bound && run.size.is_finite() && run.size > 0.0 => {
-                        (egui::FontId::new((run.size * scale).clamp(1.0, 400.0), family), Some(pr.min.y + base * scale))
+                        (egui::FontId::new(size(run.size * scale), family), Some(pr.min.y + base * scale))
                     }
-                    _ => (regular(c.height * scale * 0.8), None),
+                    _ => (regular(size(c.height * scale * 0.8)), None),
                 };
                 let galley = painter.layout_no_wrap(app.canvas.ime_preedit.clone(), font, caret_color);
                 // The galley's first baseline sits on the line's baseline, as typed text would.
@@ -6118,6 +6124,61 @@ mod tests {
         assert!(first.as_deref().is_some_and(|n| n.starts_with("composition ") && n.contains(run.face.family.as_str())), "{first:?}");
         // Every font set the interface installs binds the family, so drawing with it can't panic.
         assert!(crate::theme::font_definitions(false, false).families.contains_key(&crate::theme::composition_family()));
+        // As drawn: at the text's size on screen, its first baseline on the line's. The caret's IME
+        // rectangle gives the caret's top and the page's scale on screen.
+        let ime = h.output().platform_output.ime.as_ref().map(|i| i.rect).expect("the caret's IME rectangle");
+        let scale = ime.height() / caret.height;
+        let drawn = h
+            .output()
+            .shapes
+            .iter()
+            .find_map(|c| match &c.shape {
+                egui::Shape::Text(t) if t.galley.text() == "tottori" => Some(t.clone()),
+                _ => None,
+            })
+            .expect("the composition is drawn");
+        let size = drawn.galley.job.sections.first().map(|s| s.format.font_id.size);
+        assert!(size.is_some_and(|s| (s - 20.0 * scale).abs() < 0.01), "{size:?} at scale {scale}");
+        let row = drawn.galley.rows.first().expect("a row");
+        let baseline = drawn.pos.y + row.pos.y + row.glyphs.first().expect("a glyph").pos.y;
+        let want = ime.min.y + (base - caret.top) * scale;
+        assert!((baseline - want).abs() < 0.5, "drawn baseline {baseline}, the line's {want}");
+        // A composition isn't text until it is committed.
+        assert_eq!(h.state().session.doc.plain_text(StoryRef::Body), "Hello");
+    }
+
+    /// The composition's size never panics egui, which draws each glyph into its font atlas and
+    /// panics on one wider than the atlas. In 1,638-point text at 500% the text's size is about
+    /// 11,000 points, so the composition is drawn smaller.
+    #[test]
+    fn a_composition_at_the_largest_size_and_zoom_is_drawn_smaller() {
+        let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+        app.run("document.setText", json!({"text": "W"})).unwrap();
+        app.run("select.all", json!({})).unwrap();
+        app.run("format.size", json!({"size": 1638})).unwrap();
+        app.run("caret.docEnd", json!({})).unwrap();
+        app.run("view.zoom", json!({"value": 500})).unwrap();
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        for _ in 0..8 {
+            h.step();
+        }
+        h.event(egui::Event::Ime(egui::ImeEvent::Preedit { text: "WWW".into(), active_range_chars: None }));
+        for _ in 0..3 {
+            h.step();
+        }
+        let size = h.output().shapes.iter().find_map(|c| match &c.shape {
+            egui::Shape::Text(t) if t.galley.text() == "WWW" => t.galley.job.sections.first().map(|s| s.format.font_id.size),
+            _ => None,
+        });
+        let most = h.ctx.input(|i| i.max_texture_side) as f32 / 4.0 / h.ctx.pixels_per_point();
+        assert!(size.is_some_and(|s| s > 1.0 && s <= most), "{size:?}, at most {most}");
     }
 
     /// #1169: Space and Enter count as `Response::clicked` on the focused canvas, and
