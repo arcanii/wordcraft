@@ -245,7 +245,11 @@ Newest first.
   macOS-only functions in `apps/wordcraft/src/graphics.rs` (#2652), which upstream fixed in
   #3006. Main (`117aea3`) was merged in again (`e44e2fb`, no conflicts). fmt, clippy
   `-D warnings` on the whole workspace, the ui-egui and layout tests (1,162), layers and wasm
-  pass. Pushed, the description's checks updated, Auto-fix on.
+  pass. Pushed, the description's checks updated, Auto-fix on. CodeRabbit then asked to drop the
+  composition's 400-point cap and to assert the drawn baseline. The cap guards a panic: epaint
+  asserts that a glyph fits its font atlas, and 1,638-point text at 500% gives a 10,206-pixel
+  glyph. It is now a quarter of the atlas side, at most 1,024 pixels. The fallback, which had no
+  limit on main either, gets the same limit, and a new test pins it (`0f2c0c2`).
 - **2026-10-19 (#2856 and #2441 merged upstream):** echelon merged
   [storytold/wordcraft#2856](https://github.com/storytold/wordcraft/pull/2856), the File page crash
   fix, on 2026-10-18 (merge `03a992a`, approved by FredApps), after merging main into it himself
