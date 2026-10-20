@@ -18,9 +18,9 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `4a251d4` (WordCraft 0.8.0 and the commits after it), 2026-10-18 |
-| Last merge of upstream | 2026-10-18: `4a251d4`, 108 commits, no conflicts (earlier the same day: `f2e15cf`, 0.8.0; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
-| Fork carries | no code: only this file and `AGENTS-aniefork.md` differ from upstream |
+| Fork `main` is based on | upstream `d1b0bfc` (WordCraft 0.9.0 and 4 commits after it), 2026-10-21 |
+| Last merge of upstream | 2026-10-21: `d1b0bfc`, 174 commits, no conflicts (earlier: `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
 
@@ -233,6 +233,13 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-21 (0.9.0 merged into the fork; #3022 approved):** Merged upstream `d1b0bfc` (0.9.0
+  and 4 commits after it, 174 since `4a251d4`), no conflicts. fmt, clippy, assets, layers and
+  wasm pass. `cargo test --workspace` passes but for upstream's three colour-emoji tests, which
+  fail on Windows as before (3,462 pass). FredApps approved
+  [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022) on 2026-10-20 at
+  `0f2c0c2`; it is not in 0.9.0 and waits to be merged, Auto-fix on. A test build of fork main
+  with the branch merged in (no craft-fonts) is in `dist/`.
 - **2026-10-19 (input method composition offered upstream):** Found by the owner with the
   Microsoft Japanese IME in a test build: the composition showed a box until committed, and
   then Latin letters in it looked bold. Causes: the composition borrows document faces only up
