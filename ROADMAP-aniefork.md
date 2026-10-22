@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `d1b0bfc` (WordCraft 0.9.0 and 4 commits after it), 2026-10-21 |
-| Last merge of upstream | 2026-10-21: `d1b0bfc`, 174 commits, no conflicts (earlier: `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `00bc6a4` (WordCraft 0.9.0 and the commits after it), 2026-10-22 |
+| Last merge of upstream | 2026-10-22: `00bc6a4`, 560 commits, no conflicts (earlier: `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -43,7 +43,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16); no change upstream yet. The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: offered as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441) (branch `docx-open-shares-parts`; picture document, once open: 866 → 772 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16). The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: **merged 2026-10-18 as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441)** (`8107581`; picture document, once open: 866 → 772 MB). Each undo step copied the style sheet and list definitions: offered as [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694) (branch `undo-shares-styles`; 500 steps with 600 styles: 1,180 → 21 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 
 ## Backlog
 
@@ -233,6 +233,16 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-22 (upstream merged into the fork on macOS):** Merged upstream `00bc6a4` (564 commits
+  after 0.9.0, 560 since `d1b0bfc`), no conflicts. `cargo xtask ci` passes on macOS: fmt, clippy,
+  test (3,884), assets, layers and wasm; upstream's `legacy_font_effects_are_drawn`, which failed
+  on macOS before, passes now. The memory branches are merged with the same `00bc6a4`:
+  [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) now indexes
+  character maps inside upstream's new run fallback (#1549), and
+  [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694) wraps 26 more
+  upstream writes to the style sheet and lists; both can merge, Auto-fix on.
+  [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441) was merged on
+  2026-10-18.
 - **2026-10-21 (0.9.0 merged into the fork; #3022 approved):** Merged upstream `d1b0bfc` (0.9.0
   and 4 commits after it, 174 since `4a251d4`), no conflicts. fmt, clippy, assets, layers and
   wasm pass. `cargo test --workspace` passes but for upstream's three colour-emoji tests, which
