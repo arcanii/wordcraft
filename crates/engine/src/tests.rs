@@ -8300,6 +8300,122 @@ fn rename_unsaved_document_names_the_file_not_the_document() {
     assert!(s.file_name.is_none() && s.path.is_none());
 }
 
+/// A version snapshot belongs to the document it was taken from: opening another document (or
+/// starting a new one) starts a new version history, so a restore can't put the previous
+/// document's content into the open one (#1327 follow-up).
+#[test]
+fn a_version_snapshot_does_not_survive_a_document_switch() {
+    let mut s = Session::new(wordcraft_doc::Document::from_text("First document."));
+    s.run("file.versions", &json!({"save": "snapshot"})).unwrap();
+    assert_eq!(s.versions.len(), 1);
+
+    // A new document: the snapshot of the previous one is gone with it.
+    s.run("file.new", &json!({})).unwrap();
+    assert!(s.versions.is_empty(), "the snapshot of the previous document survived the switch");
+    assert!(s.run("file.versions", &json!({"restore": 0})).is_err(), "the old snapshot is still restorable");
+    assert_ne!(s.doc.plain_text(StoryRef::Body), "First document.", "the old document's content came back");
+
+    // The same for an opened file.
+    s.run("file.versions", &json!({"save": "snapshot"})).unwrap();
+    s.run("file.open", &json!({"path": "other.txt", "data": "aGk="})).unwrap();
+    assert!(s.versions.is_empty(), "the snapshot of the previous document survived the switch");
+    assert!(s.run("file.versions", &json!({"restore": 0})).is_err(), "the old snapshot is still restorable");
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "hi");
+
+    // A snapshot of the open document still restores into it.
+    s.run("file.versions", &json!({"save": "snapshot"})).unwrap();
+    s.run("text.insert", &json!({"text": " there"})).unwrap();
+    s.run("file.versions", &json!({"restore": 0})).unwrap();
+    assert_eq!(s.doc.plain_text(StoryRef::Body), "hi");
+}
+
+/// A comparison that opens the original replaces the open document, so the version snapshots
+/// of the document it replaces go with it: a restore must not put the previous document back
+/// over the comparison result (#1327 follow-up).
+#[test]
+fn a_version_snapshot_does_not_survive_a_comparison() {
+    let dir = std::env::temp_dir().join(format!("wordcraft-compare-versions-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let original = dir.join("original.docx");
+    let mut other = Session::new(wordcraft_doc::Document::from_text("Original document."));
+    other.run("file.save", &json!({"path": original.to_string_lossy()})).unwrap();
+
+    let mut s = Session::new(wordcraft_doc::Document::from_text("Current document."));
+    s.run("file.versions", &json!({"save": "snapshot"})).unwrap();
+    assert_eq!(s.versions.len(), 1);
+    s.run("review.compare", &json!({"original": original.to_string_lossy(), "text": "Revised document."})).unwrap();
+    assert!(s.versions.is_empty(), "the snapshot of the previous document survived the comparison");
+    assert!(s.run("file.versions", &json!({"restore": 0})).is_err(), "the old snapshot is still restorable");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Compare's new and revised results are untitled documents even without an `original` path.
+#[test]
+fn a_version_snapshot_does_not_survive_an_untitled_comparison() {
+    for show_in in ["new", "revised"] {
+        let mut s = Session::new(wordcraft_doc::Document::from_text("Current document."));
+        s.run("file.versions", &json!({"save": "snapshot"})).unwrap();
+        s.run("review.compare", &json!({"text": "Revised document.", "showIn": show_in})).unwrap();
+        assert!(s.versions.is_empty(), "old snapshots survived a {show_in} comparison");
+        assert!(s.run("file.versions", &json!({"restore": 0})).is_err());
+        assert!(s.path.is_none() && s.file_name.is_none());
+    }
+}
+
+/// A rejected comparison leaves the current document and its snapshots together.
+#[test]
+fn a_rejected_comparison_keeps_the_current_versions() {
+    use wordcraft_doc::{CharProps, InlineObject};
+
+    let mut s = Session::new(wordcraft_doc::Document::from_text("Editable. Locked."));
+    s.path = Some(std::path::PathBuf::from("original.docx"));
+    s.file_name = Some("original.docx".into());
+    s.run("file.versions", &json!({"save": "snapshot"})).unwrap();
+    let end = s.doc.end_of(StoryRef::Body);
+    s.doc.insert_object(&end, InlineObject::PermEnd { id: 1 }, &CharProps::default()).unwrap();
+    let start = s.doc.start_of(StoryRef::Body);
+    s.doc.insert_object(&start, InlineObject::PermStart { id: 1, group: String::new(), editor: s.author.clone() }, &CharProps::default()).unwrap();
+    s.run("review.restrict", &json!({"mode": "readOnly"})).unwrap();
+    let before = s.doc.clone();
+
+    assert!(s.run("review.compare", &json!({"text": "Different document.", "showIn": "new"})).is_err());
+    assert_eq!(s.doc, before);
+    assert_eq!(s.versions.len(), 1, "a rejected comparison discarded the current document's snapshot");
+    assert_eq!(s.path.as_deref(), Some(std::path::Path::new("original.docx")));
+    assert_eq!(s.file_name.as_deref(), Some("original.docx"));
+}
+
+/// A rejected mailing result must keep the source document's save target and versions.
+#[test]
+fn a_rejected_mailing_result_keeps_the_current_file_identity() {
+    use wordcraft_doc::{CharProps, InlineObject};
+
+    let mut s = Session::new(wordcraft_doc::Document::from_text("Protected source."));
+    s.path = Some(std::path::PathBuf::from("source.docx"));
+    s.file_name = Some("source.docx".into());
+    s.run("file.versions", &json!({"save": "snapshot"})).unwrap();
+    let end = s.doc.end_of(StoryRef::Body);
+    s.doc.insert_object(&end, InlineObject::PermEnd { id: 1 }, &CharProps::default()).unwrap();
+    let start = s.doc.start_of(StoryRef::Body);
+    s.doc.insert_object(&start, InlineObject::PermStart { id: 1, group: String::new(), editor: s.author.clone() }, &CharProps::default()).unwrap();
+    s.run("review.restrict", &json!({"mode": "readOnly"})).unwrap();
+    let before = s.doc.clone();
+    let before_id = s.document_id();
+    let before_dirty = s.dirty;
+    s.password = Some(crate::io::Password::new("synthetic file password"));
+    s.bib_style = "Chicago".into();
+
+    assert!(s.run("mailings.envelopes", &json!({"delivery": "Recipient"})).is_err());
+    assert_eq!(s.doc, before);
+    assert_eq!(s.versions.len(), 1);
+    assert_eq!(s.path.as_deref(), Some(std::path::Path::new("source.docx")));
+    assert_eq!(s.file_name.as_deref(), Some("source.docx"));
+    assert_eq!(s.document_id(), before_id);
+    assert_eq!(s.dirty, before_dirty);
+    assert_eq!(s.password.as_ref().map(crate::io::Password::as_str), Some("synthetic file password"));
+    assert_eq!(s.bib_style, "Chicago");
+}
+
 /// #1344: File › Info › Inspect Document finds hidden text by its effective formatting (direct,
 /// character style, paragraph style) in every story — body, header, footer, footnote, comment,
 /// text box — and Remove All deletes exactly that text, in one undo step, through a DOCX save.
@@ -9212,4 +9328,41 @@ fn table_cell_margins_preserves_unpassed_sides() {
     run(&mut s, "table.cellMargins", json!({"top": 0.0, "bottom": 0.0}));
     let margins = s.doc.table(StoryRef::Body, &tp).unwrap().props.cell_margins.unwrap();
     assert_eq!(margins, [0.0, 10.0, 0.0, 15.0]);
+}
+
+#[test]
+fn headless_ui_requests_stay_bounded() {
+    let mut s = s();
+    let big = "x".repeat(1 << 20);
+    for _ in 0..200 {
+        run(&mut s, "edit.pasteSpecial", json!({"text": big}));
+        run(&mut s, "edit.goto", json!({}));
+    }
+    assert!(s.ui_requests.len() <= 64, "len = {}", s.ui_requests.len());
+    let size: usize = s.ui_requests.iter().map(|r| r.to_string().len()).sum();
+    assert!(size < 4 << 20, "queued {size} bytes");
+}
+
+/// `file.exportPng` writes only to `.png` paths, so automation can't replace other files with
+/// page images (#3696).
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn export_png_refuses_a_path_that_is_not_png() {
+    let dir = scratch_dir("export-png-extension");
+    let mut s = s();
+    run(&mut s, "text.insert", json!({"text": "Hello"}));
+    for name in ["notes.txt", "config", "report.docx", "page.png.txt"] {
+        let target = dir.join(name);
+        std::fs::write(&target, b"precious user notes").unwrap();
+        let r = s.run("file.exportPng", &json!({"path": target.to_string_lossy()}));
+        assert!(matches!(r, Err(crate::CmdError::Params(_))), "{name}: {r:?}");
+        assert_eq!(std::fs::read(&target).unwrap(), b"precious user notes", "{name} was changed");
+    }
+    // A .png path still works, whatever its case.
+    for name in ["page.png", "PAGE.PNG"] {
+        let target = dir.join(name);
+        s.run("file.exportPng", &json!({"path": target.to_string_lossy()})).unwrap();
+        assert!(std::fs::read(&target).unwrap().starts_with(b"\x89PNG"), "{name} is not a PNG");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
 }

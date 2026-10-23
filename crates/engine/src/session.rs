@@ -637,12 +637,23 @@ fn doc_bib_style(doc: &Document) -> String {
     doc.settings.bib_style.as_deref().and_then(crate::cmd::citations::find_style).map_or("APA", |st| st.name).to_string()
 }
 
+/// Most pending front-end requests a session keeps.
+pub const MAX_UI_REQUESTS: usize = 64;
 /// Maximum undo depth.
 const MAX_UNDO: usize = 500;
 /// How many steps the Undo button's list shows (#701); `edit.undoTo` reaches no further.
 pub const UNDO_LIST_MAX: usize = 100;
 
 impl Session {
+    /// Queue a request for the front end. A headless session never drains the queue, so only
+    /// the newest [`MAX_UI_REQUESTS`] are kept.
+    pub fn push_ui_request(&mut self, req: Value) {
+        if self.ui_requests.len() >= MAX_UI_REQUESTS {
+            self.ui_requests.remove(0);
+        }
+        self.ui_requests.push(req);
+    }
+
     /// File name of the persisted custom dictionary inside the settings folder.
     pub const USER_DICT_FILE: &str = "custom-dictionary.txt";
 
@@ -1158,6 +1169,12 @@ impl Session {
         self.typing_open = false;
     }
 
+    /// The version snapshots belong to the document they were taken from: keeping the old ones
+    /// would let a restore put the previous document's content into this one (#1327 follow-up).
+    pub fn clear_versions(&mut self) {
+        self.versions.clear();
+    }
+
     /// The region in effect (#838): the one the user chose ([`Prefs::region`]), else the
     /// system's.
     pub fn region(&self) -> wordcraft_geom::Region {
@@ -1216,6 +1233,7 @@ impl Session {
         self.go_back_step = 0;
         self.view.outline.collapsed.clear();
         self.reset_history();
+        self.clear_versions();
         self.touch();
         self.dirty = false;
         self.relayout();
@@ -1435,6 +1453,22 @@ impl Session {
         } else {
             None
         };
+        // These mutating commands can replace the open document and discard its saved versions.
+        // Keep the versions until the command and the protected-region post-check have both
+        // succeeded; rejected commands must leave the old document and its snapshots together.
+        let replaces_document = matches!(id, "review.compare" | "review.combine" | "mailings.finish" | "mailings.envelopes" | "mailings.labels");
+        let versions_before = replaces_document.then(|| self.versions.clone());
+        let identity_before = replaces_document.then(|| {
+            (
+                self.path.clone(),
+                self.file_name.clone(),
+                self.document_id,
+                self.password.clone(),
+                self.dirty,
+                self.bib_style.clone(),
+                self.merge.preview,
+            )
+        });
         let typing = spec.id == "text.insert" || spec.id == "equation.type";
         if spec.mutates && !typing {
             self.typing_open = false;
@@ -1516,6 +1550,18 @@ impl Session {
             Err(e) => {
                 self.autocap = None;
                 self.prefs.default_language = default_language_before;
+                if let Some(versions) = versions_before {
+                    self.versions = versions;
+                }
+                if let Some((path, file_name, document_id, password, dirty, bib_style, merge_preview)) = identity_before {
+                    self.path = path;
+                    self.file_name = file_name;
+                    self.document_id = document_id;
+                    self.password = password;
+                    self.dirty = dirty;
+                    self.bib_style = bib_style;
+                    self.merge.preview = merge_preview;
+                }
                 if let Some((d, s, h, r, t, ev, c)) = before_doc {
                     self.doc = d;
                     self.sel = s;
