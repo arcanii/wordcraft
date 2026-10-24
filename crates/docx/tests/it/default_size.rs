@@ -2,6 +2,7 @@
 //! reopen. An unset default is resolved as `DEFAULT_FONT_SIZE`; the writer must say so, because
 //! the reader reads an omitted size as 10 pt.
 use std::io::{Read, Write};
+use std::sync::Arc;
 use wordcraft_doc::Document;
 use wordcraft_doc::props::{CharProps, DEFAULT_FONT_SIZE};
 fn resolved(d: &Document) -> f32 {
