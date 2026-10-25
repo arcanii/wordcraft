@@ -4247,6 +4247,7 @@ fn a_press_inside_a_text_box_over_a_picture_goes_to_its_text() {
     assert!(!b.contains(wordcraft_geom::Point::new(cx, y)), "{b:?}");
     assert!(l.object_at(0, cx, y, 4.0).is_none());
     assert_eq!(l.story_at(0, cx, y), Some(StoryRef::Part(id)));
+    assert_eq!(l.hit(0, cx, y, StoryRef::Part(id)).map(|p| p.story), Some(StoryRef::Part(id)));
     // Both behind the text, away from the body text: the same, and a picture stacked above the
     // box still grabs.
     let (l, id) = form(Wrap::BehindText, 1, 0.0);
