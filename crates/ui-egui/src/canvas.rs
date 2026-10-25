@@ -1689,9 +1689,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
                 });
                 // Word draws the composition in the font and size of the text it goes into: take the
-                // face, size and baseline the layout gives text typed here (not in turned text).
+                // face, size and baseline the layout gives text typed here (not in turned text). The
+                // face is the one the run's font asks for, not a fallback face that drew the
+                // character before the caret (a Chinese character in a Latin font).
                 let typing = if c.width == 0.0 { layout.typing_style(&app.session.sel.focus, app.session.page_hint) } else { None };
-                let face = typing.as_ref().map(|(run, _)| run.face);
+                let face = typing.as_ref().map(|(run, _)| run.requested_face);
                 if !new.is_empty() || face != app.canvas.ime_face {
                     app.canvas.ime_faces.extend(new);
                     app.canvas.ime_face = face;
@@ -7183,9 +7185,9 @@ mod tests {
         for _ in 0..3 {
             h.step();
         }
-        assert!(h.state().canvas.ime_face == Some(run.face), "the composition takes that face");
+        assert!(h.state().canvas.ime_face == Some(run.requested_face), "the composition takes that face");
         let first = h.ctx.fonts(|f| f.definitions().families.get(&crate::theme::composition_family()).and_then(|v| v.first().cloned()));
-        assert!(first.as_deref().is_some_and(|n| n.starts_with("composition ") && n.contains(run.face.family.as_str())), "{first:?}");
+        assert!(first.as_deref().is_some_and(|n| n.starts_with("composition ") && n.contains(run.requested_face.family.as_str())), "{first:?}");
         // Every font set the interface installs binds the family, so drawing with it can't panic.
         assert!(crate::theme::font_definitions(false, false).families.contains_key(&crate::theme::composition_family()));
         // As drawn: at the text's size on screen, its first baseline on the line's. The caret's IME

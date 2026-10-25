@@ -496,9 +496,10 @@ impl DocLayout {
     }
 
     /// The style run text typed at `pos` would take (the character's before it, or at the start
-    /// of a paragraph the first character's) and the baseline of `pos`'s line on its page: an
-    /// input method's composition is drawn with them, as Word draws it in the text's own font and
-    /// size. `None` in turned text, whose lines aren't horizontal.
+    /// of a paragraph the first character's) and the baseline it sits on, on the page: `pos`'s
+    /// line's, raised or lowered by the run's shift (superscript, `w:position`). An input method's
+    /// composition is drawn with them, as Word draws it in the text's own font and size. `None` in
+    /// turned text, whose lines aren't horizontal.
     pub fn typing_style(&self, pos: &Pos, page_hint: usize) -> Option<(StyleRun, f32)> {
         for (_, it) in self.pieces(pos.story, &pos.path, page_hint) {
             let Placed::Lines { para, l0, l1, y, turn, .. } = it else { continue };
@@ -513,7 +514,7 @@ impl DocLayout {
             let line = para.lines.get(li)?;
             let at = |off: usize| para.clusters.iter().find(|c| c.start <= off && off < c.end).and_then(|c| para.styles.get(c.style as usize));
             let run = pos.off.checked_sub(1).and_then(at).or_else(|| at(pos.off)).or_else(|| para.styles.first())?;
-            return Some((run.clone(), y + line.baseline - first.top));
+            return Some((run.clone(), y + line.baseline - first.top - run.shift));
         }
         None
     }
