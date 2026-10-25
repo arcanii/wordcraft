@@ -354,13 +354,15 @@ impl DocLayout {
             StoryRef::Part(id) => hf_text_at(p, id, x, y),
         };
         // Inside a text box is its text: a press there grabs nothing, not an object under the box
-        // (a form scanned as a picture, with text boxes laid over it to fill in).
+        // (a form scanned as a picture, with text boxes laid over it to fill in). The same holds
+        // among the objects behind the text.
         let inside_text_box = |o: &ObjectHit| o.text_box.is_some() && !grabs(o) && o.rect.contains(o.unspin(x, y));
-        match cands.iter().find(|o| !o.behind() && (grabs(o) || inside_text_box(o))) {
+        let topmost = |behind: bool| cands.iter().find(|o| o.behind() == behind && (grabs(o) || inside_text_box(o)));
+        match topmost(false) {
             Some(o) if inside_text_box(o) => None,
             Some(o) => Some(o.clone()),
             None if text_here => None,
-            None => cands.iter().find(|o| o.behind() && grabs(o)).cloned(),
+            None => topmost(true).filter(|o| !inside_text_box(o)).cloned(),
         }
     }
 
