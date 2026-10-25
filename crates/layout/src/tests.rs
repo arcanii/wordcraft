@@ -4219,15 +4219,15 @@ fn a_press_inside_a_text_box_over_a_picture_goes_to_its_text() {
         z,
         ..Default::default()
     };
-    let form = |picture_z: u32| {
+    let form = |picture_z: u32, rot: f32| {
         let mut d = Document::from_text("Form");
         let picture =
             InlineObject::Image { media: "form".into(), w: 300.0, h: 400.0, alt: String::new(), float: float(picture_z), crop: [0.0; 4], ole: None };
         d.insert_object(&Pos::body(0, 0), picture, &Default::default()).unwrap();
-        let id = text_box(&mut d, 0, "Name", 200.0, 100.0, Float { x: 50.0, y: 150.0, ..float(2) });
+        let id = text_box(&mut d, 0, "Name", 200.0, 100.0, Float { x: 50.0, y: 150.0, rot, ..float(2) });
         (lay(&d), id)
     };
-    let (l, id) = form(1);
+    let (l, id) = form(1, 0.0);
     let b = box_rect(&l, id);
     let (cx, cy) = (b.x + b.w / 2.0, b.y + b.h / 2.0);
     // Inside the box: its text, not the picture under it.
@@ -4237,9 +4237,17 @@ fn a_press_inside_a_text_box_over_a_picture_goes_to_its_text() {
     assert_eq!(l.object_at(0, b.x + 1.0, cy, 4.0).map(|o| o.text_box), Some(Some(id)));
     assert_eq!(l.object_at(0, cx, b.y - 40.0, 4.0).map(|o| o.text_box), Some(None));
     // A picture in front of the box still grabs where it covers it.
-    let (l, id) = form(3);
+    let (l, id) = form(3, 0.0);
     let b = box_rect(&l, id);
     assert_eq!(l.object_at(0, b.x + b.w / 2.0, b.y + b.h / 2.0, 4.0).map(|o| o.text_box), Some(None));
+    // A box turned a quarter covers a tall strip: a press in it, below its unturned frame, is its
+    // text for both the object and the story hit test.
+    let (l, id) = form(1, 90.0);
+    let b = box_rect(&l, id);
+    let (cx, y) = (b.x + b.w / 2.0, b.y + b.h / 2.0 + 80.0);
+    assert!(!b.contains(wordcraft_geom::Point::new(cx, y)), "{b:?}");
+    assert!(l.object_at(0, cx, y, 4.0).is_none());
+    assert_eq!(l.story_at(0, cx, y), Some(StoryRef::Part(id)));
 }
 
 /// (lines placed, lines laid out) of a text box's story, and its area.

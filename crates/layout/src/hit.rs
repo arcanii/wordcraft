@@ -317,12 +317,13 @@ impl DocLayout {
     }
 
     /// The story whose text is under a point (body, footnotes, endnotes, text boxes; not
-    /// headers/footers). A text box wins inside its area, except one behind the text, which only
-    /// wins where no body text is.
+    /// headers/footers). A text box wins inside its area (its rotated area when it is turned, as
+    /// [`DocLayout::object_at`] takes it), except one behind the text, which only wins where no
+    /// body text is.
     pub fn story_at(&self, page: usize, x: f32, y: f32) -> Option<StoryRef> {
         let p = self.pages.get(page)?;
         let text_box = |behind: bool| {
-            objects(p, page).find(|o| o.behind() == behind && o.text_box.is_some() && o.rect.contains(Point::new(x, y))).and_then(|o| o.text_box)
+            objects(p, page).find(|o| o.behind() == behind && o.text_box.is_some() && o.rect.contains(o.unspin(x, y))).and_then(|o| o.text_box)
         };
         text_box(false).map(StoryRef::Part).or_else(|| text_at(p, page, x, y)).or_else(|| text_box(true).map(StoryRef::Part))
     }
