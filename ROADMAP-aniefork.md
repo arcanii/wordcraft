@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `c72e1ca` (WordCraft 0.10.0 and 284 commits after it), 2026-10-25 |
-| Last merge of upstream | 2026-10-25: `c72e1ca`, 285 commits, no conflicts (earlier: `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `ab0eccd` (WordCraft 0.10.0 and 593 commits after it), 2026-10-26 |
+| Last merge of upstream | 2026-10-26: `ab0eccd`, 309 commits, no conflicts; upstream's tip then, `2c99a42`, did not build its tests (earlier: `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -234,6 +234,17 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-26 (upstream merged; #3022 brought up to date):** Merged upstream `ab0eccd` (0.10.0
+  and 593 commits after it, 309 since `c72e1ca`), no conflicts. Upstream's tip, `2c99a42`, failed
+  its own CI: `tests_linear.rs` uses `Page` and `Rgb` without importing them. On macOS fmt,
+  clippy, i18n-report, assets, layers and wasm pass, and 4,560 tests. Two upstream tests fail here:
+  `tests_linear::proof_text_walks_the_runs_once` (8× the input took about 33× the time) and
+  `canvas::tests::a_right_to_left_balloon_reads_from_the_right` (fails under nextest). Upstream now
+  builds egui from its fork `storytold/egui` as a git dependency; cargo's own git client hung
+  fetching it for hours, so fetch with `CARGO_NET_GIT_FETCH_WITH_CLI=true`.
+  [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022) conflicted: merged
+  with `ab0eccd`, its composition font now goes with upstream's fonts from every window, and the
+  IME tests' kana stand-in also serves the composition family.
 - **2026-10-25 (upstream merged; text boxes over pictures offered upstream):** Merged upstream
   `c72e1ca` (0.10.0 and 284 commits after it, 285 since `00bc6a4`), no conflicts. `cargo xtask ci`
   passes on macOS: all eight steps (fmt, clippy, test, i18n-report, doctest, assets, layers, wasm),
