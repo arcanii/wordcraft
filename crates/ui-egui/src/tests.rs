@@ -265,9 +265,17 @@ fn non_latin_file_name_is_drawn_in_the_caption() {
 /// the caption, like an input method's composition, showed boxes.
 #[test]
 fn a_japanese_file_name_is_drawn_in_the_caption() {
+    // A font to draw it with: an installed CJK font in a build without embedded CJK faces, or
+    // embedded faces that have the name's characters (embedded faces without them load no
+    // installed font for it).
     let embedded = wordcraft_fonts::ui_cjk_fonts_for(false, false);
-    if embedded.is_empty() && wordcraft_fonts::system_cjk_ui_font_for(false, false, &[]).is_none() {
-        // No CJK font, embedded or installed, to draw it with.
+    let drawable = if embedded.is_empty() {
+        wordcraft_fonts::system_cjk_ui_font_for(false, false, &[]).is_some()
+    } else {
+        wordcraft_fonts::ui_uncovered_cjk(&["日本語"], &embedded).is_empty()
+    };
+    if !drawable {
+        eprintln!("skipped: no CJK font draws 日本語");
         return;
     }
     let ctx = egui::Context::default();
