@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `ab0eccd` (WordCraft 0.10.0 and 593 commits after it), 2026-10-26 |
-| Last merge of upstream | 2026-10-26: `ab0eccd`, 309 commits, no conflicts; upstream's tip then, `2c99a42`, did not build its tests (earlier: `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `2cf1d6c` (WordCraft 0.10.0 and 739 commits after it), 2026-10-27 |
+| Last merge of upstream | 2026-10-27: `2cf1d6c`, 146 commits, no conflicts (earlier: `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -234,6 +234,18 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-27 (upstream merged; the memory PRs follow upstream's file splits):** Merged upstream
+  `2cf1d6c` (0.10.0 and 739 commits after it, 146 since `ab0eccd`), no conflicts. On macOS fmt,
+  clippy, i18n-report, assets, layers and wasm pass, and 4,566 of 4,569 tests. The three that fail
+  here are upstream's: `proof_text_walks_the_runs_once` and
+  `a_right_to_left_balloon_reads_from_the_right` as before, and the timing test
+  `a_long_unbreakable_word_lays_out_in_linear_time`, which passes run alone. Upstream's gate now
+  needs cargo-nextest 0.9.150 (`cargo nextest self update --yes`). Upstream split `fontdb.rs` into
+  `fontdb/`, and several other files into modules:
+  [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345)'s changes moved
+  into `fontdb/fallback_data.rs`, `names.rs` and `fallback.rs`, and
+  [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694) wraps the moved
+  writes; both can merge.
 - **2026-10-26 (upstream merged; #3022 brought up to date):** Merged upstream `ab0eccd` (0.10.0
   and 593 commits after it, 309 since `c72e1ca`), no conflicts. Upstream's tip, `2c99a42`, failed
   its own CI: `tests_linear.rs` uses `Page` and `Rgb` without importing them. On macOS fmt,
