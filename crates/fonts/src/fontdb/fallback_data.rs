@@ -206,14 +206,14 @@ pub(super) struct FallbackCache {
 }
 
 /// [`FontDb::fallback_for_run`] results: (sorted, deduplicated chars, excluded face, bold,
-/// italic) → face, valid while the loaded face count is `faces`.
+/// italic, Japanese) → face, valid while the loaded face count is `faces`.
 #[derive(Default)]
 pub(super) struct RunFallbackCache {
     pub(super) faces: usize,
     /// Chars held in the keys (bounds memory: hostile runs can be long).
     pub(super) chars: usize,
     #[allow(clippy::type_complexity)]
-    pub(super) map: HashMap<(Vec<char>, u32, bool, bool), Option<Arc<FontFace>>>,
+    pub(super) map: HashMap<(Vec<char>, u32, bool, bool, bool), Option<Arc<FontFace>>>,
 }
 
 /// Most cached run-level fallbacks, and most chars in their keys, before the cache is reset.
@@ -224,9 +224,10 @@ pub(super) const RUN_FALLBACK_CACHE_CHARS: usize = 1 << 20;
 /// Loaded faces other than `exclude`, in fallback order: for right-to-left text the fonts made
 /// for the script first (so a word isn't split across fonts, which breaks Arabic joining); for a
 /// complex-script character `complex` (Thai, Myanmar…) faces with OpenType layout tables, the
-/// script's own families first, as the per-character fallback ranks them; then the fallback
-/// family, upright, nearest to regular weight.
-pub(super) fn fallback_order(faces: &[Arc<FontFace>], exclude: u32, rtl: bool, complex: Option<char>) -> Vec<&Arc<FontFace>> {
+/// script's own families first, as the per-character fallback ranks them; for `japanese` text
+/// the families made for Japanese ([`crate::is_japanese_family`]); then the fallback family,
+/// upright, nearest to regular weight.
+pub(super) fn fallback_order(faces: &[Arc<FontFace>], exclude: u32, rtl: bool, complex: Option<char>, japanese: bool) -> Vec<&Arc<FontFace>> {
     let mut order: Vec<&Arc<FontFace>> = faces.iter().filter(|f| f.id != exclude).collect();
     let rank =
         |f: &FontFace| if rtl { RTL_FALLBACKS.iter().position(|n| f.family.eq_ignore_ascii_case(n)).unwrap_or(RTL_FALLBACKS.len()) } else { 0 };
@@ -234,7 +235,16 @@ pub(super) fn fallback_order(faces: &[Arc<FontFace>], exclude: u32, rtl: bool, c
         Some(c) => (!f.has_layout_tables(), crate::fallback_rank(c, &f.family)),
         None => (false, 0),
     };
-    order.sort_by_key(|f| (rank(f), shaping(f), !f.family.eq_ignore_ascii_case(FALLBACK_FAMILY), f.italic, (f.weight - 400.0).abs() as i32));
+    order.sort_by_cached_key(|f| {
+        (
+            rank(f),
+            shaping(f),
+            japanese && !crate::is_japanese_family(&f.family),
+            !f.family.eq_ignore_ascii_case(FALLBACK_FAMILY),
+            f.italic,
+            (f.weight - 400.0).abs() as i32,
+        )
+    });
     order
 }
 

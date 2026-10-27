@@ -137,6 +137,8 @@ impl<'a> Builder<'a> {
         // instead of mixing faces per character (e.g. a bundled Japanese Mincho for JIS-covered
         // ideographs beside a Simplified-Chinese sans for the rest). Whitespace and characters the
         // primary covers don't constrain the choice. `None` keeps the per-character fallback.
+        // Japanese text (`w:lang w:eastAsia` ja, or kana) takes a font made for Japanese, so
+        // the ideographs it shares with Chinese aren't drawn in their Chinese forms.
         let ea_face: Option<FaceRef> = {
             let ea: Vec<char> = text
                 .chars()
@@ -145,7 +147,8 @@ impl<'a> Builder<'a> {
             if ea.is_empty() {
                 None
             } else {
-                wordcraft_fonts::FontDb::global().fallback_for_run(&ea, primary.id(), rc.bold, rc.italic).map(|f| FaceRef::of(&f))
+                let japanese = rc.lang_ea.as_deref().is_some_and(is_japanese_lang);
+                wordcraft_fonts::FontDb::global().fallback_for_run_in(&ea, primary.id(), rc.bold, rc.italic, japanese).map(|f| FaceRef::of(&f))
             }
         };
         // Split by font coverage (fallback faces), small caps case, script formatting and direction.
@@ -630,4 +633,10 @@ impl Builder<'_> {
 /// tracked deletions in the final text. It takes no room, draws nothing and is no place to break.
 pub(crate) fn left_out(doc: &Document, rc: &ResolvedChar, show_hidden: bool, hide_deleted: crate::HideDeleted) -> bool {
     (rc.hidden && !show_hidden) || hide_deleted.hides(doc, rc.del)
+}
+
+/// Whether a `w:lang` tag (`ja-JP`, `ja`) is Japanese.
+fn is_japanese_lang(tag: &str) -> bool {
+    let primary = tag.split(['-', '_']).next().unwrap_or(tag);
+    primary.eq_ignore_ascii_case("ja")
 }
