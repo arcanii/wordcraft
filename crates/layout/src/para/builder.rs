@@ -137,8 +137,9 @@ impl<'a> Builder<'a> {
         // instead of mixing faces per character (e.g. a bundled Japanese Mincho for JIS-covered
         // ideographs beside a Simplified-Chinese sans for the rest). Whitespace and characters the
         // primary covers don't constrain the choice. `None` keeps the per-character fallback.
-        // Japanese text (`w:lang w:eastAsia` ja, or kana) takes a font made for Japanese, so
-        // the ideographs it shares with Chinese aren't drawn in their Chinese forms.
+        // Japanese text (`w:lang w:eastAsia` ja, or kana anywhere in the run, also ones the
+        // primary draws) takes a font made for Japanese, so the ideographs it shares with Chinese
+        // aren't drawn in their Chinese forms.
         let ea_face: Option<FaceRef> = {
             let ea: Vec<char> = text
                 .chars()
@@ -147,7 +148,7 @@ impl<'a> Builder<'a> {
             if ea.is_empty() {
                 None
             } else {
-                let japanese = rc.lang_ea.as_deref().is_some_and(is_japanese_lang);
+                let japanese = rc.lang_ea.as_deref().is_some_and(is_japanese_lang) || text.chars().any(wordcraft_fonts::is_kana);
                 wordcraft_fonts::FontDb::global().fallback_for_run_in(&ea, primary.id(), rc.bold, rc.italic, japanese).map(|f| FaceRef::of(&f))
             }
         };
