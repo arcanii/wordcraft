@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `2cf1d6c` (WordCraft 0.10.0 and 739 commits after it), 2026-10-27 |
-| Last merge of upstream | 2026-10-27: `2cf1d6c`, 146 commits, no conflicts (earlier: `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `d522bfd` (WordCraft 0.11.0 and 473 commits after it), 2026-10-28 |
+| Last merge of upstream | 2026-10-28: `d522bfd`, 26 commits, no conflicts (earlier: `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -45,6 +45,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 |---|---|---|
 | **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16). The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: **merged 2026-10-18 as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441)** (`8107581`; picture document, once open: 866 → 772 MB). Each undo step copied the style sheet and list definitions: offered as [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694) (branch `undo-shares-styles`; 500 steps with 600 styles: 1,180 → 21 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 | **Forms built from pictures and text boxes** | This log, 2026-10-25 | A form scanned as a picture, with text boxes laid over it to fill in, could not be edited: a press inside a text box grabbed the picture under it. Offered as [storytold/wordcraft#4240](https://github.com/storytold/wordcraft/pull/4240) (branch `textbox-click-through`). Also found, not started: typing with a floating picture selected deletes the picture (Word's behaviour to be checked first), and the Founder font FZKai-Z03 falls back to a sans face instead of an installed Kai face |
+| **Japanese input and text on macOS** | This log, 2026-10-28 | In a build without craft-fonts and craft-i18n, a Japanese input method's composition showed boxes until committed, and committed Japanese text was drawn in PingFang HK, a Chinese font. The composition needs [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022) (composition in the CJK UI font) and [storytold/wordcraft#4637](https://github.com/storytold/wordcraft/pull/4637) (branch `ime-japanese-macos`: that font is loaded when the build has none; overlaps upstream's #4082). Text with kana, or tagged Japanese, takes a Japanese font (Hiragino on macOS): [storytold/wordcraft#4638](https://github.com/storytold/wordcraft/pull/4638) (branch `japanese-fallback-font`). Not started: kanji alone with no language, and Chinese text drawn in PingFang HK rather than SC |
 
 ## Backlog
 
@@ -234,6 +235,24 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-28 (upstream merged; Japanese input and text on macOS offered):** Merged upstream
+  `d522bfd` (0.11.0 and 473 commits after it, 26 since `2cf1d6c`), no conflicts. Upstream added a
+  per-user Windows install scope, faster layout of plain text (shape plans kept per face) and
+  menu fixes. On macOS fmt, clippy, i18n-report, doctest, assets, layers and wasm pass, and 4,581
+  of 4,585 tests. The four that fail here are upstream's: `proof_text_walks_the_runs_once` and
+  `a_right_to_left_balloon_reads_from_the_right` as before; `a_thai_run_with_latin_falls_back_to_one_face`,
+  which since upstream's `04ebc4ed` (#3995) runs on macOS, picks Thonburi and finds no OpenType
+  tables in it; and the timing test `a_word_with_alternating_advances_lays_out_in_linear_time`,
+  which passes run alone. Typing with the Japanese input method on macOS, in a build without
+  craft-fonts and craft-i18n, showed boxes until the text was committed. The composition had no
+  Japanese font: the kana fallback is PingFang HK (78 MB), too large to borrow, and the CJK UI
+  font #3022 asks for was never loaded in such a build. Offered as
+  [storytold/wordcraft#4637](https://github.com/storytold/wordcraft/pull/4637) (branch
+  `ime-japanese-macos`). The owner checked it in the app with #3022: the composition shows
+  Japanese. Committed Japanese text was drawn in PingFang HK too, with Chinese punctuation
+  placement and forms. Text with kana, or tagged Japanese, now takes Hiragino:
+  [storytold/wordcraft#4638](https://github.com/storytold/wordcraft/pull/4638) (branch
+  `japanese-fallback-font`). CodeRabbit's one comment on each was fixed.
 - **2026-10-27 (upstream merged; the memory PRs follow upstream's file splits):** Merged upstream
   `2cf1d6c` (0.10.0 and 739 commits after it, 146 since `ab0eccd`), no conflicts. On macOS fmt,
   clippy, i18n-report, assets, layers and wasm pass, and 4,566 of 4,569 tests. The three that fail
