@@ -49,14 +49,8 @@ impl CoverageIndex {
     /// Does the cataloged file at `path` map `cp`? Its character maps are read the first time.
     pub(super) fn file_holds(&mut self, path: &std::path::Path, cp: u32) -> bool {
         let Ok(i) = self.files.binary_search_by(|f| f.path.as_path().cmp(path)) else { return false };
-        let reads = &mut self.reads;
         let Some(file) = self.files.get_mut(i) else { return false };
-        let ranges = file.ranges.get_or_insert_with(|| {
-            *reads += 1;
-            file.stamp = file_stamp(&file.path);
-            file_coverage(&file.path)
-        });
-        ranges_hold(ranges, cp)
+        ranges_hold(file.ranges(&mut self.reads), cp)
     }
 }
 
@@ -71,6 +65,20 @@ pub(super) struct IndexedFile {
     pub(super) stamp: Option<(u64, std::time::SystemTime)>,
     /// Loaded for a character it covers: its faces are searched as loaded fonts from then on.
     pub(super) used: bool,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl IndexedFile {
+    /// The code points the file maps. Its character maps are read the first time (counted in
+    /// `reads`), and its stamp kept with them, so a rescan keeps them unless the file is replaced.
+    pub(super) fn ranges(&mut self, reads: &mut usize) -> &[(u32, u32)] {
+        let (path, stamp) = (&self.path, &mut self.stamp);
+        self.ranges.get_or_insert_with(|| {
+            *reads += 1;
+            *stamp = file_stamp(path);
+            file_coverage(path)
+        })
+    }
 }
 
 /// The size and modification time of the file at `path` (`None` when it can't be read).

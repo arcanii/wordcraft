@@ -523,6 +523,22 @@ fn a_rescan_reads_a_replaced_font_files_character_maps_again() {
 }
 
 #[test]
+fn a_rescan_keeps_the_character_maps_a_fallback_search_read() {
+    // Files indexed by a fallback search, not only by a family lookup, keep their character maps
+    // through a rescan: #605's hundreds of files aren't read again after each font folder change.
+    let dir = font_dir("rescan-fallback");
+    std::fs::write(dir.join("Sysfont-Regular.ttf"), mapping_u30000(FAMILY)).unwrap();
+    let db = FontDb::with_font_dirs(vec![dir]);
+    let latin = db.face(FALLBACK_FAMILY, "Regular");
+    assert!(db.fallback_for('\u{30000}', latin.id()).is_some(), "the installed font maps it");
+    assert_eq!(db.coverage.lock().unwrap().reads, 2, "the Bold file and then the Regular");
+    db.load_system_fonts();
+    // Nothing maps it: the search reaches the Bold file, which isn't loaded, and asks its ranges.
+    assert!(db.fallback_for('\u{F0001}', latin.id()).is_none());
+    assert_eq!(db.coverage.lock().unwrap().reads, 2, "the rescan kept both files' character maps");
+}
+
+#[test]
 fn coverage_of_installed_fonts_is_what_their_loaded_faces_map() {
     // Read from the character maps alone, as the whole file maps. Uses installed fonts when
     // there are some, collections among them.

@@ -1,8 +1,6 @@
 use super::face::{FALLBACK_FAMILY, FontFace};
 #[cfg(not(target_arch = "wasm32"))]
-use super::fallback_data::{
-    CoverageIndex, IndexedFile, SYS_MISSES_MAX, SYSTEM_FALLBACKS, file_coverage, file_stamp, ranges_hold, read_fallback_file,
-};
+use super::fallback_data::{CoverageIndex, IndexedFile, SYS_MISSES_MAX, SYSTEM_FALLBACKS, file_stamp, ranges_hold, read_fallback_file};
 use super::fallback_data::{FALLBACK_CACHE_MAX, RTL_FALLBACKS, RUN_FALLBACK_CACHE_CHARS, RUN_FALLBACK_CACHE_MAX, arabic_block, fallback_order};
 use super::{Arc, FontDb};
 #[cfg(not(target_arch = "wasm32"))]
@@ -354,12 +352,7 @@ impl FontDb {
         let CoverageIndex { files, reads, .. } = &mut *index;
         for i in 0..files.len() {
             let Some(file) = files.get_mut(i).filter(|f| !f.used) else { continue };
-            let ranges = file.ranges.get_or_insert_with(|| {
-                *reads += 1;
-                file.stamp = file_stamp(&file.path);
-                file_coverage(&file.path)
-            });
-            if !maps_all(ranges) {
+            if !maps_all(file.ranges(reads)) {
                 continue;
             }
             // The file maps them: load it (once; its faces are loaded fonts from now on).
