@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `d522bfd` (WordCraft 0.11.0 and 473 commits after it), 2026-10-28 |
-| Last merge of upstream | 2026-10-28: `d522bfd`, 26 commits, no conflicts (earlier: `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `ccb8ce8` (WordCraft 0.12.0 and 6 commits after it), 2026-10-30 |
+| Last merge of upstream | 2026-10-30: `ccb8ce8`, 27 commits, no conflicts (earlier: `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -235,6 +235,23 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 
 Newest first.
 
+- **2026-10-30 (upstream merged, 0.12.0; the font and Japanese PRs follow upstream's Clippy
+  rules):** Merged upstream `ccb8ce8` (0.12.0 and 6 commits after it, 27 since `d522bfd`), no
+  conflicts. Upstream now enforces stricter Clippy lints across the workspace (#4501), among them
+  `wildcard_imports = "deny"`, and added recipient label sheets for mail merge (#4880) and Flatpak
+  printing through CUPS. On macOS fmt, clippy, i18n-report, doctest, assets, layers and wasm
+  pass, and 4,589 of 4,592 tests. The three that fail are upstream's, as before:
+  `proof_text_walks_the_runs_once`, `a_right_to_left_balloon_reads_from_the_right` and
+  `a_thai_run_with_latin_falls_back_to_one_face`. #4501 conflicted with two open pull requests,
+  and both were merged with it:
+  [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (explicit imports
+  in `fallback_data.rs`) and
+  [storytold/wordcraft#4638](https://github.com/storytold/wordcraft/pull/4638) (its Japanese flag
+  added to upstream's `RunFallbackKey`). FredApps's requested change on #2345 (2026-10-21: a file
+  indexed by the fallback search lost its character maps at every rescan) had been fixed by the
+  merge on 2026-10-22 without a reply. As he suggested, one `IndexedFile::ranges` now reads the
+  maps and the stamp for both callers, and a test rescans after a fallback hit (`5d63eb90`). The
+  reply is posted. #3022 is now approved too.
 - **2026-10-28 (upstream merged; Japanese input and text on macOS offered):** Merged upstream
   `d522bfd` (0.11.0 and 473 commits after it, 26 since `2cf1d6c`), no conflicts. Upstream added a
   per-user Windows install scope, faster layout of plain text (shape plans kept per face) and
