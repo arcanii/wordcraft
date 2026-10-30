@@ -624,7 +624,13 @@ fn system_cjk_font(hans: bool, korean: bool) -> Option<&'static wordcraft_fonts:
         let (catalogs, names) = crate::i18n::Lang::cjk_font_text_for(hans, korean);
         let needed = system_cjk_needed(&catalogs, &names, &embedded)?;
         log::debug!("interface: {} CJK characters lack an embedded glyph", needed.len());
-        wordcraft_fonts::system_cjk_ui_font_for(hans, korean, &needed)
+        let found = wordcraft_fonts::system_cjk_ui_font_for(hans, korean, &needed);
+        if found.is_none() && needed.is_empty() && !hans && !korean {
+            // No Japanese or Chinese font installed: a Korean one (NanumGothic alone on Linux)
+            // still draws Korean document text.
+            return wordcraft_fonts::system_cjk_ui_font_for(false, true, &needed);
+        }
+        found
     })
     .as_ref()
 }
@@ -637,7 +643,7 @@ fn system_cjk_font(hans: bool, korean: bool) -> Option<&'static wordcraft_fonts:
 /// caption). A build with neither craft-i18n's CJK catalogs nor craft-fonts' CJK faces has no CJK
 /// text of its own to measure, and that text drew as boxes. It gets the font picked for the
 /// language's own characters (an empty list: [`wordcraft_fonts::system_cjk_ui_font_for`] probes
-/// one, `の` for a Japanese or other interface).
+/// one, `の` for a Japanese or other interface), or failing that a Korean font.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn system_cjk_needed(catalogs: &[&str], names: &str, embedded: &[&wordcraft_fonts::CraftFont]) -> Option<Vec<char>> {
     let needed = wordcraft_fonts::ui_uncovered_cjk(catalogs, embedded);
