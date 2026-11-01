@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `ccb8ce8` (WordCraft 0.12.0 and 6 commits after it), 2026-10-30 |
-| Last merge of upstream | 2026-10-30: `ccb8ce8`, 27 commits, no conflicts (earlier: `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `6e0f7e7` (WordCraft 0.13.2 and 17 commits after it), 2026-11-01 |
+| Last merge of upstream | 2026-11-01: `6e0f7e7`, 73 commits, no conflicts (earlier: `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -234,6 +234,28 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 ## Log
 
 Newest first.
+
+- **2026-11-01 (upstream merged, 0.13.2; #3022 kept up with main, and its overlap with #3624
+  and #4546 answered):** Merged upstream `6e0f7e7` (0.13.0 to 0.13.2 and 17 commits after it, 73
+  since `ccb8ce8`), no conflicts. Upstream added a Macros dialog, table copy and cut, Backstage
+  keytips, PAGEREF page numbers in tables of contents, fallback faces for chart and SmartArt
+  text, and many import fixes. On Windows (Rust 1.99) fmt, i18n-report, doctest, assets, layers
+  and wasm pass, and 4,688 of 4,689 tests; the emoji tests that failed on Windows before now
+  pass. Two Windows-only problems are upstream's, and no upstream check runs either on Windows:
+  clippy stops on `names` in `crates/mcp/tests/automation_roots.rs` (used only by a Unix test),
+  the only clippy error in the workspace; and `wordcraft-proof`'s
+  `hunspell::tests::reads_are_bounded_and_regular_files_only` (#3661) expects "not a regular
+  file" for a directory, but on Windows opening a directory already fails ("Access is denied"),
+  so the error is right and only its text differs.
+  [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022) conflicted with
+  upstream's Traditional Chinese interface fonts (#3380); Auto-fix merged `8148a23` (`22495c1`),
+  and the canvas closure, over upstream's new `cognitive_complexity` limit, gave its composition
+  drawing to `paint_composition` (`06095b7`); checks green, re-approval asked of FredApps by
+  benandez. Issue #3624 (an audit's N-16: the unclamped composition size panicked egui 0.36's
+  atlas) is fixed by #3022 and now linked to it; #4546 (rahul05ranjan) fixes the same line with
+  a fixed 6–160 clamp. Running #3022's size test on upstream `main` showed that since #4241
+  (egui 0.37) egui skips glyph bitmaps over 1,024 px, so the composition disappears rather than
+  panics. #3022's description, a correction on #3624 and a note on #4546 say so.
 
 - **2026-10-30 (upstream merged, 0.12.0; the font and Japanese PRs follow upstream's Clippy
   rules):** Merged upstream `ccb8ce8` (0.12.0 and 6 commits after it, 27 since `d522bfd`), no
