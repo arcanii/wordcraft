@@ -1,8 +1,72 @@
+use super::PartKind;
 use super::header_footer::hf_part;
 use super::{
     Align, Block, CharProps, CmdError, CmdResult, InlineObject, Paragraph, Rgb, Selection, Session, StoryRef, TabAlign, TabStop, TextColor, Value,
     delete_selection, json, p, para_block, sel_result, type_text,
 };
+use std::collections::BTreeSet;
+
+fn story_has_page_field(doc: &wordcraft_doc::Document, story: StoryRef, except: Option<usize>) -> bool {
+    let Some(blocks) = doc.story(story) else { return false };
+    let mut seen = BTreeSet::from([story]);
+    let mut pending: Vec<&Block> = blocks.iter().enumerate().filter(|(i, _)| Some(*i) != except).map(|(_, b)| &**b).collect();
+    while let Some(block) = pending.pop() {
+        let para = match block {
+            Block::Para(para) => para,
+            Block::Table(table) => {
+                pending.extend(table.rows.iter().flat_map(|r| &r.cells).flat_map(|c| &c.blocks).map(|b| &**b));
+                continue;
+            }
+        };
+        for object in &para.objects {
+            if matches!(object, InlineObject::Field { instr, .. } | InlineObject::FieldStart { instr, .. } if instr.split_whitespace().next().is_some_and(|name| name.eq_ignore_ascii_case("PAGE")))
+            {
+                return true;
+            }
+            for id in object.text_boxes() {
+                if let Some(part) = doc.parts.get(&id).filter(|part| part.kind == PartKind::TextBox)
+                    && seen.insert(StoryRef::Part(id))
+                {
+                    pending.extend(part.blocks.iter().map(|b| &**b));
+                }
+            }
+        }
+    }
+    false
+}
+
+fn page_number_paragraph(style: &str, align: Align, x_of_y: bool) -> Result<Paragraph, CmdError> {
+    let field = InlineObject::Field { instr: "PAGE".into(), result: "1".into(), locked: false, dirty: false, code: false, form: String::new() };
+    let mut para = Paragraph::new().styled(style);
+    para.props.align = Some(align);
+    para.props.tabs = Some(vec![TabStop { pos: 0.0, align: TabAlign::Clear, leader: Default::default() }]);
+    if x_of_y {
+        para.insert_text(0, "Page  of ", &CharProps::default())?;
+        para.insert_object(5, field, &CharProps { bold: Some(true), ..Default::default() })?;
+        let end = para.len();
+        para.insert_object(
+            end,
+            InlineObject::Field { instr: "NUMPAGES".into(), result: "1".into(), locked: false, dirty: false, code: false, form: String::new() },
+            &CharProps { bold: Some(true), ..Default::default() },
+        )?;
+    } else {
+        para.insert_object(0, field, &CharProps::default())?;
+    }
+    Ok(para)
+}
+
+// Only cached display text is transferable; instructions, flags and formatting remain part of ownership.
+fn copy_page_number_results(to: &mut Paragraph, from: &Paragraph) {
+    for object in &mut to.objects {
+        let InlineObject::Field { instr, result, .. } = object else { continue };
+        if let Some(cached) = from.objects.iter().find_map(|object| match object {
+            InlineObject::Field { instr: source, result, .. } if source.as_str() == instr.as_str() => Some(result),
+            _ => None,
+        }) {
+            result.clone_from(cached);
+        }
+    }
+}
 
 pub(super) fn page_number(s: &mut Session, v: &Value) -> CmdResult {
     let position = p::str(v, "position").unwrap_or("bottom");
@@ -22,22 +86,61 @@ pub(super) fn page_number(s: &mut Session, v: &Value) -> CmdResult {
     }
     let header = position == "top";
     let id = hf_part(s, header);
-    let mut para = Paragraph::new().styled(if header { "Header" } else { "Footer" });
-    para.props.align = Some(align);
-    para.props.tabs = Some(vec![TabStop { pos: 0.0, align: TabAlign::Clear, leader: Default::default() }]);
-    if x_of_y {
-        para.insert_text(0, "Page  of ", &CharProps::default())?;
-        para.insert_object(5, field, &CharProps { bold: Some(true), ..Default::default() })?;
-        let end = para.len();
-        para.insert_object(
-            end,
-            InlineObject::Field { instr: "NUMPAGES".into(), result: "1".into(), locked: false, dirty: false, code: false, form: String::new() },
-            &CharProps { bold: Some(true), ..Default::default() },
-        )?;
-    } else {
-        para.insert_object(0, field, &CharProps::default())?;
+    let story = StoryRef::Part(id);
+    let style = if header { "Header" } else { "Footer" };
+    let mut para = page_number_paragraph(style, align, x_of_y)?;
+    // Replace only a top-level paragraph matching our generated structure. User text,
+    // field switches/metadata and paragraph/run formatting must not be mistaken for a gallery number.
+    // Cached field results and paragraph-mark formatting survive gallery changes and identical requests.
+    if story_has_page_field(&s.doc, story, None) {
+        let generated = s.doc.story(story).and_then(|blocks| {
+            blocks.iter().enumerate().find_map(|(i, block)| {
+                let Block::Para(existing) = &**block else { return None };
+                let Some(align @ (Align::Left | Align::Center | Align::Right)) = existing.props.align else { return None };
+                [false, true]
+                    .into_iter()
+                    .any(|x_of_y| {
+                        page_number_paragraph(style, align, x_of_y).is_ok_and(|mut p| {
+                            if p.objects.len() != existing.objects.len() {
+                                return false;
+                            }
+                            p.mark = existing.mark.clone();
+                            copy_page_number_results(&mut p, existing);
+                            *existing == p
+                        })
+                    })
+                    .then_some((i, existing))
+            })
+        });
+        // More than one PAGE makes ownership ambiguous, including in tables or anchored text
+        // boxes. The traversal visits each story once so cycles cannot hang insertion.
+        if let Some((i, existing)) = generated
+            && !story_has_page_field(&s.doc, story, Some(i))
+        {
+            para.mark = existing.mark.clone();
+            copy_page_number_results(&mut para, existing);
+            let replacement = para_block(para);
+            if s.doc.story(story).and_then(|blocks| blocks.get(i)) != Some(&replacement) {
+                let block = s.doc.story_mut(story)?.get_mut(i).ok_or_else(|| CmdError::Failed("page-number paragraph is missing".into()))?;
+                *block = replacement;
+            }
+        }
+        return Ok(json!({"story": id}));
     }
-    s.doc.set_story(StoryRef::Part(id), vec![para_block(para)])?;
+    let blocks = s.doc.story_mut(story)?;
+    // A DOCX round trip can add paragraph-mark formatting to the otherwise untouched
+    // Header/Footer placeholder. Reuse it without losing that formatting or adding a blank line.
+    if let [block] = blocks.as_slice()
+        && let Block::Para(existing) = &**block
+    {
+        let mut placeholder = Paragraph::new().styled(style);
+        placeholder.mark = existing.mark.clone();
+        if *existing == placeholder {
+            para.mark = existing.mark.clone();
+            blocks.clear();
+        }
+    }
+    blocks.push(para_block(para));
     Ok(json!({"story": id}))
 }
 
@@ -61,14 +164,16 @@ pub(super) fn date_time(s: &mut Session, v: &Value) -> CmdResult {
 
 /// Format today's date with a Word picture (`M/d/yyyy`, `MMMM d, yyyy`, `yyyy-MM-dd`, `dddd`…).
 pub fn format_date(fmt: &str) -> String {
-    let iso = crate::cmd::now_iso();
-    let y: i64 = iso.get(0..4).and_then(|x| x.parse().ok()).unwrap_or(2026);
-    let m: usize = iso.get(5..7).and_then(|x| x.parse().ok()).unwrap_or(1);
-    let d: u32 = iso.get(8..10).and_then(|x| x.parse().ok()).unwrap_or(1);
-    let hh: u32 = iso.get(11..13).and_then(|x| x.parse().ok()).unwrap_or(0);
-    let mm: u32 = iso.get(14..16).and_then(|x| x.parse().ok()).unwrap_or(0);
-    let ss: u32 = iso.get(17..19).and_then(|x| x.parse().ok()).unwrap_or(0);
-    format_date_parts(fmt, y, m, d, (hh, mm, ss), (crate::cmd::now_unix() / 86_400) as i64)
+    // Word shows the computer's local date and time (#1707), not UTC's.
+    let now = crate::cmd::now_unix();
+    format_date_at(fmt, now, crate::cmd::local_offset_secs(now))
+}
+
+/// Format the instant `unix` (seconds since the epoch, UTC) with a Word picture, in the zone
+/// `offset_secs` east of UTC.
+pub fn format_date_at(fmt: &str, unix: u64, offset_secs: i64) -> String {
+    let (y, m, d, hms, days) = crate::cmd::local_civil(unix, offset_secs);
+    format_date_parts(fmt, y, m as usize, d, hms, days)
 }
 
 /// Format a date and time with a Word picture; `days_since` (days since 1970-01-01) gives the weekday.
@@ -83,6 +188,28 @@ pub fn format_date_parts(fmt: &str, y: i64, m: usize, d: u32, (hh, mm, ss): (u32
     let mut i = 0;
     while i < chars.len() {
         let c = chars.get(i).copied().unwrap_or(' ');
+        // Text in single quotes is shown as it is; two quotes in a row are one, inside quoted
+        // text or out of it.
+        if c == '\'' && chars.get(i + 1) == Some(&'\'') {
+            out.push('\'');
+            i += 2;
+            continue;
+        }
+        if c == '\'' {
+            i += 1;
+            while let Some(&q) = chars.get(i) {
+                i += 1;
+                if q != '\'' {
+                    out.push(q);
+                } else if chars.get(i) == Some(&'\'') {
+                    out.push('\'');
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            continue;
+        }
         // `am/pm` (any case) is one token: AM or PM.
         if chars.get(i..i + 5).is_some_and(|w| w.iter().collect::<String>().eq_ignore_ascii_case("am/pm")) {
             out.push_str(if hh < 12 { "AM" } else { "PM" });
@@ -217,17 +344,36 @@ pub(super) fn cover_page(s: &mut Session, v: &Value) -> CmdResult {
 }
 
 /// Why Insert › Drop Cap is off at the caret, as in Word: in a table cell, in an empty paragraph
-/// and in one that starts with a space.
+/// and in one that starts with a space. A selection must be fit throughout (what Dropped and In
+/// margin need), unless a paragraph in it has a drop cap for None to take away.
 pub(super) fn drop_cap_off(s: &Session) -> Option<&'static str> {
-    if s.sel.focus.path.cell().is_some() {
-        return Some("drop caps can't go in a table");
-    }
-    let first = s.doc.para_at(&s.sel.focus).and_then(|p| p.text.chars().next());
+    let why = drop_cap_selection_off(s)?;
+    let story = s.sel.focus.story;
+    let has_cap = crate::cmd::selected_paths(s).iter().any(|path| s.doc.para(story, path).is_some_and(|p| p.props.drop_cap.is_some()));
+    (!has_cap).then_some(why)
+}
+
+fn drop_cap_first_letter(first: Option<char>) -> Option<&'static str> {
     match first {
         None => Some("the paragraph is empty"),
         Some(c) if c.is_whitespace() => Some("the paragraph starts with a space"),
         Some(_) => None,
     }
+}
+
+/// The same check for every selected paragraph, as the command formats them all.
+fn drop_cap_selection_off(s: &Session) -> Option<&'static str> {
+    let story = s.sel.focus.story;
+    for path in crate::cmd::selected_paths(s) {
+        if path.cell().is_some() {
+            return Some("drop caps can't go in a table");
+        }
+        let first = s.doc.para(story, &path).and_then(|p| p.text.chars().next());
+        if let Some(why) = drop_cap_first_letter(first) {
+            return Some(why);
+        }
+    }
+    None
 }
 
 /// Insert › Drop Cap and Drop Cap Options: none, or the letter dropped into the text or hung in
@@ -237,15 +383,27 @@ pub(super) fn drop_cap(s: &mut Session, v: &Value) -> CmdResult {
     let lines = v.get("lines").and_then(Value::as_f64).filter(|l| l.is_finite());
     let none = p::str(v, "position") == Some("none") || lines == Some(0.0);
     let margin = p::str(v, "position") == Some("margin");
+    let lines_given = lines.is_some();
     let lines = lines.map_or(3.0, |l| l.round().clamp(1.0, 10.0)) as u8;
     let distance = p::f32(v, "distance").map_or(0.0, |d| d.clamp(0.0, wordcraft_doc::resolve::MAX_DROP_CAP_DISTANCE));
     // A family name, not a paragraph of text.
     let font = p::str(v, "font").map(str::trim).filter(|f| !f.is_empty()).map(|f| f.chars().take(64).collect::<String>());
+    if !none && let Some(why) = drop_cap_selection_off(s) {
+        return Err(CmdError::Failed(why.into()));
+    }
+    // `keep` (the menu's Dropped / In margin): a paragraph that has a drop cap keeps its own
+    // lines, distance and font unless given here.
+    let keep = !none && v.get("keep").and_then(Value::as_bool) == Some(true);
+    let (distance_given, font_given) = (p::f32(v, "distance").is_some(), v.get("font").is_some());
     crate::cmd::para::fmt(s, &|p| {
-        p.drop_cap = (!none).then_some(lines);
+        let own = keep && p.drop_cap.is_some();
+        p.drop_cap = (!none).then(|| if own && !lines_given { p.drop_cap.unwrap_or(lines) } else { lines });
         p.drop_cap_margin = (!none && margin).then_some(true);
-        p.drop_cap_distance = (!none && distance > 0.0).then_some(distance);
-        p.drop_cap_font = font.clone().filter(|_| !none);
+        let d = if own && !distance_given { p.drop_cap_distance.unwrap_or(0.0) } else { distance };
+        p.drop_cap_distance = (!none && d > 0.0).then_some(d);
+        if !(own && !font_given) {
+            p.drop_cap_font = font.clone().filter(|_| !none);
+        }
     })
 }
 
