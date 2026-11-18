@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `cc90520b` (main at version 0.18.1), 2026-11-16 |
-| Last merge of upstream | 2026-11-16: `cc90520b`, 919 commits, no conflicts (earlier: `060768f`, 0.15.1 and 607 commits after it, on 2026-11-11 on macOS, pushed from there and merged into this line on 2026-11-18; `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `64683a7d` (main at version 0.18.1), 2026-11-18 |
+| Last merge of upstream | 2026-11-18: `64683a7d`, 153 commits, no conflicts (earlier: `cc90520b`, 919 commits, on 2026-11-16; `060768f`, 0.15.1 and 607 commits after it, on 2026-11-11 on macOS, pushed from there and merged into this line on 2026-11-18; `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -43,9 +43,9 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 
 | Topic | Record | State |
 |---|---|---|
-| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16). The first fix, font fallback loading only families that have the character, is offered as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345) (branch `font-fallback-coverage`; one emoji on macOS: 568 → 205 MB; FredApps's requested change answered 2026-10-30, re-review pending). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: **merged 2026-10-18 as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441)** (`8107581`; picture document, once open: 866 → 772 MB). Each undo step copied the style sheet and list definitions: **merged 2026-11-04 as [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694)** (`b2734c28`; 500 steps with 600 styles: 1,180 → 21 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
+| **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16). The first fix, font fallback loading only families that have the character: **merged 2026-11-18 as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345)** (`c3fe680a`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: **merged 2026-10-18 as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441)** (`8107581`; picture document, once open: 866 → 772 MB). Each undo step copied the style sheet and list definitions: **merged 2026-11-04 as [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694)** (`b2734c28`; 500 steps with 600 styles: 1,180 → 21 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 | **Forms built from pictures and text boxes** | This log, 2026-10-25 | A form scanned as a picture, with text boxes laid over it to fill in, could not be edited: a press inside a text box grabbed the picture under it. **Merged 2026-11-04 as [storytold/wordcraft#4240](https://github.com/storytold/wordcraft/pull/4240)** (`6f62716f`), first released in 0.16.0. Also found, not started: typing with a floating picture selected deletes the picture (Word's behaviour to be checked first), and the Founder font FZKai-Z03 falls back to a sans face instead of an installed Kai face |
-| **Japanese input and text on macOS** | This log, 2026-10-28 | In a build without craft-fonts and craft-i18n, a Japanese input method's composition showed boxes until committed, and committed Japanese text was drawn in PingFang HK, a Chinese font. The composition needs [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022) (composition in the text's font and size, CJK in the CJK UI font; approved again by FredApps at `f61046a` on 2026-11-10, benandez's re-review pending; its follow-up, the formatting typed text takes and the East Asian face, is promised under issue #4140) and [storytold/wordcraft#4637](https://github.com/storytold/wordcraft/pull/4637) (branch `ime-japanese-macos`: that font is loaded when the build has none; overlaps upstream's #4082). Text with kana, or tagged Japanese, takes a Japanese font (Hiragino on macOS): [storytold/wordcraft#4638](https://github.com/storytold/wordcraft/pull/4638) (branch `japanese-fallback-font`). Not started: kanji alone with no language, and Chinese text drawn in PingFang HK rather than SC |
+| **Japanese input and text on macOS** | This log, 2026-10-28 | In a build without craft-fonts and craft-i18n, a Japanese input method's composition showed boxes until committed, and committed Japanese text was drawn in PingFang HK, a Chinese font. The composition: **merged 2026-11-18 as [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022)** (`07c0a893`, squashed; composition in the text's font and size, CJK in the CJK UI font) and **2026-11-17 as [storytold/wordcraft#4637](https://github.com/storytold/wordcraft/pull/4637)** (`aeb9704d`; that font is loaded when the build has none). The follow-up promised under issue #4140, the composition in the formatting typed text takes and in the run's East Asian face, is next. Text with kana, or tagged Japanese, takes a Japanese font (Hiragino on macOS): [storytold/wordcraft#4638](https://github.com/storytold/wordcraft/pull/4638) (branch `japanese-fallback-font`; benandez's change request of 2026-11-17: a run tagged Chinese or Korean must not turn Japanese for one kana). Not started: kanji alone with no language, and Chinese text drawn in PingFang HK rather than SC |
 
 ## Backlog
 
@@ -234,6 +234,29 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 ## Log
 
 Newest first.
+
+- **2026-11-18 (upstream merged; #2345, #3022 and #4637 merged upstream; the Mac's sync of
+  2026-11-11 joined):** `origin/main` held a sync made and pushed on macOS on 2026-11-11 (upstream
+  `060768f`, logged below) that this line, synced on 2026-11-16 from Windows, didn't have. It is
+  merged in (`559785d`): only this file conflicted, and both log entries are kept. Then upstream
+  `64683a7d` was merged (153 commits since `cc90520b`, still 0.18.1), no conflicts. Upstream
+  meanwhile cut more shared code over to craft-libs (#778: code pages, MIME detection, ZIP and
+  picture probes, SSIP), drew a missing font in its font table's `altName` (#2702) and added
+  Get the Missing Fonts, made typing in a long document about five times faster with proofing
+  on (#6207), closed border corners as Word does, and fixed Wayland resizing (#5912). On Windows
+  (Rust 1.99) fmt, clippy (without `xtask`), i18n-report, language, doctest, assets, layers and
+  wasm pass, and 5,273 of 5,279 tests. Clippy on `xtask` still fails on Windows on upstream's
+  unused import in `xtask/src/stats.rs`, and the six failing tests are the six of 2026-11-16
+  that need craft-i18n or craft-fonts data; the timing-sensitive zoom test passed this time.
+  Merged upstream since then: **#2345** (font fallback loads only families that have the
+  character; FredApps, `c3fe680a`, 2026-11-18, after benandez approved), **#3022** (the IME
+  composition in the text's font; benandez approved 2026-11-17 and FredApps merged `main` into
+  it himself, then squash-merged it as `07c0a893` on 2026-11-18) and **#4637** (benandez,
+  `aeb9704d`, 2026-11-17). Both reviewers asked, under upstream's house rule 15, that pull
+  requests carry no agent attribution: FredApps removed the line from #3022's description and
+  squash-merged it to keep the commits' trailers off `main`. benandez requested changes on
+  **#4638** on 2026-11-17: a single kana made a run tagged Chinese (`zh-TW`, 這家店の招牌菜)
+  Japanese, so its hanzi took Japanese forms. FredApps will approve once that is fixed.
 
 - **2026-11-16 (upstream merged, main at 0.18.1; #2694 and #4240 merged upstream):** Merged
   upstream `cc90520b` (919 commits since `6e0f7e7`; upstream released 0.14.0 to 0.18.1 from its
