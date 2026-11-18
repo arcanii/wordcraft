@@ -19,7 +19,7 @@ logged in this file instead.
 | | |
 |---|---|
 | Fork `main` is based on | upstream `cc90520b` (main at version 0.18.1), 2026-11-16 |
-| Last merge of upstream | 2026-11-16: `cc90520b`, 919 commits, no conflicts (earlier: `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Last merge of upstream | 2026-11-16: `cc90520b`, 919 commits, no conflicts (earlier: `060768f`, 0.15.1 and 607 commits after it, on 2026-11-11 on macOS, pushed from there and merged into this line on 2026-11-18; `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -267,6 +267,32 @@ Newest first.
   formatting typed text takes, and the East Asian face, are promised as a follow-up under issue
   #4140. A review of #5225 (Recent documents with dates, huguesbert17) was posted, tested on
   Windows with a network path.
+- **2026-11-11 (upstream merged, 0.15.1; #2694 and #4240 merged upstream):** Merged upstream
+  `060768f` (0.14.0 to 0.15.1 and 607 commits after it, 771 since `6e0f7e7`), no conflicts.
+  Upstream fixed many ODT round trips with LibreOffice (gap 19) and floating anchors after manual
+  breaks, brought back three behaviours lost in the #4501 refactor (#4683), and added strict
+  export (`convert --strict` and `render --strict`, #6005 and #6008), which refuses a PDF or PNG
+  that would draw a character no font has. On macOS (Rust 1.99.1) fmt, clippy, i18n-report,
+  doctest, assets, layers and wasm pass, and 5,736 of 5,755 tests. The 19 that fail are
+  upstream's, since the fork's code is upstream's. Twelve strict-export tests in
+  `wordcraft-engine` and `wordcraft-cli` need code points in plane 4 that no installed face
+  covers, and on this Mac one covers them all (most likely `LastResort.otf`, which maps every
+  code point). Seven fail on a clean checkout of upstream `main` on this Mac too (checked
+  2026-11-08): `a_thai_run_with_latin_falls_back_to_one_face`,
+  `a_right_to_left_balloon_reads_from_the_right`, `interface_symbols_have_glyphs` (`。`),
+  `swiss_german_and_portugal_portuguese_keep_their_languages_rules`, and three of hyphenation and
+  hidden text in `wordcraft-layout`. benandez merged
+  [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694) (`b2734c2`, with
+  Martin Ball's `b0b1736` writing a new test's lists through `Arc::make_mut`) and
+  [storytold/wordcraft#4240](https://github.com/storytold/wordcraft/pull/4240) (`6f62716`) on
+  2026-11-04. Auto-fix kept the open pull requests merged with `main`: #2694 twice before it was
+  merged (`4a86d52`; `6277d75`, after upstream moved paste's adoption of another document into
+  `Document::adopt`), #4638 (`018794e`) and #2345 (`75438f2`). On #4637 a commit for FredApps's
+  review (`f1d4e7a`) makes the CJK font tests fail rather than skip on macOS and Windows;
+  CodeRabbit's later note asking for the opposite was not acted on. Waiting on reviewers: #2345
+  (FredApps's change request of 2026-10-21, answered 2026-10-30), #3022 (FredApps approved
+  `f61046a` on 2026-11-10; benandez's change request of 2026-11-05 still stands), and #4637 and
+  #4638 (mergeable, no review decision).
 
 - **2026-11-01 (upstream merged, 0.13.2; #3022 kept up with main, and its overlap with #3624
   and #4546 answered):** Merged upstream `6e0f7e7` (0.13.0 to 0.13.2 and 17 commits after it, 73
