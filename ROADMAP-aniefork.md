@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `64683a7d` (main at version 0.18.1), 2026-11-18 |
-| Last merge of upstream | 2026-11-18: `64683a7d`, 153 commits, no conflicts (earlier: `cc90520b`, 919 commits, on 2026-11-16; `060768f`, 0.15.1 and 607 commits after it, on 2026-11-11 on macOS, pushed from there and merged into this line on 2026-11-18; `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `678f9473` (main at version 0.18.1, after the craft UI port #7101), 2026-11-22 |
+| Last merge of upstream | 2026-11-22: `678f9473`, 62 commits, no conflicts (earlier: `64683a7d`, 153 commits, on 2026-11-18; `cc90520b`, 919 commits, on 2026-11-16; `060768f`, 0.15.1 and 607 commits after it, on 2026-11-11 on macOS, pushed from there and merged into this line on 2026-11-18; `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -45,7 +45,7 @@ Investigations recorded for later, each meant to end in upstream pull requests.
 |---|---|---|
 | **Memory use** | [`docs/memory-aniefork.md`](docs/memory-aniefork.md), with the measuring tools in `docs/memory-aniefork/` | Measured and traced on Windows on upstream `daf8caa` (2026-10-15), and on macOS on `f424471` (2026-10-16). The first fix, font fallback loading only families that have the character: **merged 2026-11-18 as [storytold/wordcraft#2345](https://github.com/storytold/wordcraft/pull/2345)** (`c3fe680a`; one emoji on macOS: 568 → 205 MB). The real app on macOS: 588 MB with a text document open, of which about 295 MB is any Metal window's and about 190 MB eframe's; WordCraft's own share is about 100 MB. Pictures decoded at their drawn size are on the local branch `picture-decode-size` (peaks −110 to −140 MB, settled unchanged; not offered). Opening a DOCX copied every picture out of the unzipped package: **merged 2026-10-18 as [storytold/wordcraft#2441](https://github.com/storytold/wordcraft/pull/2441)** (`8107581`; picture document, once open: 866 → 772 MB). Each undo step copied the style sheet and list definitions: **merged 2026-11-04 as [storytold/wordcraft#2694](https://github.com/storytold/wordcraft/pull/2694)** (`b2734c28`; 500 steps with 600 styles: 1,180 → 21 MB). PDF export also copies each embedded font file. The real app on Windows is not measured yet |
 | **Forms built from pictures and text boxes** | This log, 2026-10-25 | A form scanned as a picture, with text boxes laid over it to fill in, could not be edited: a press inside a text box grabbed the picture under it. **Merged 2026-11-04 as [storytold/wordcraft#4240](https://github.com/storytold/wordcraft/pull/4240)** (`6f62716f`), first released in 0.16.0. Also found, not started: typing with a floating picture selected deletes the picture (Word's behaviour to be checked first), and the Founder font FZKai-Z03 falls back to a sans face instead of an installed Kai face |
-| **Japanese input and text on macOS** | This log, 2026-10-28 | In a build without craft-fonts and craft-i18n, a Japanese input method's composition showed boxes until committed, and committed Japanese text was drawn in PingFang HK, a Chinese font. The composition: **merged 2026-11-18 as [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022)** (`07c0a893`, squashed; composition in the text's font and size, CJK in the CJK UI font) and **2026-11-17 as [storytold/wordcraft#4637](https://github.com/storytold/wordcraft/pull/4637)** (`aeb9704d`; that font is loaded when the build has none). The follow-up promised under issue #4140, the composition in the formatting typed text takes and in the run's East Asian face, is offered as [storytold/wordcraft#7009](https://github.com/storytold/wordcraft/pull/7009) (branch `ime-composition-typing-props`, 2026-11-19). Text with kana, or tagged Japanese, takes a Japanese font (Hiragino on macOS): [storytold/wordcraft#4638](https://github.com/storytold/wordcraft/pull/4638) (branch `japanese-fallback-font`; benandez's change request of 2026-11-17, that a run tagged Chinese or Korean must not turn Japanese for one kana, fixed in `fe30bfb` on 2026-11-19). Not started: kanji alone with no language, and Chinese text drawn in PingFang HK rather than SC |
+| **Japanese input and text on macOS** | This log, 2026-10-28 | In a build without craft-fonts and craft-i18n, a Japanese input method's composition showed boxes until committed, and committed Japanese text was drawn in PingFang HK, a Chinese font. The composition: **merged 2026-11-18 as [storytold/wordcraft#3022](https://github.com/storytold/wordcraft/pull/3022)** (`07c0a893`, squashed; composition in the text's font and size, CJK in the CJK UI font) and **2026-11-17 as [storytold/wordcraft#4637](https://github.com/storytold/wordcraft/pull/4637)** (`aeb9704d`; that font is loaded when the build has none). The follow-up promised under issue #4140, the composition in the formatting typed text takes and in the run's East Asian face, is offered as [storytold/wordcraft#7009](https://github.com/storytold/wordcraft/pull/7009) (branch `ime-composition-typing-props`, 2026-11-19; CodeRabbit's findings fixed in `e90a97d`; ported onto #7101's `canvas/caret.rs` on 2026-11-22 at benandez's request). Text with kana, or tagged Japanese, takes a Japanese font (Hiragino on macOS): [storytold/wordcraft#4638](https://github.com/storytold/wordcraft/pull/4638) (branch `japanese-fallback-font`; benandez's change request of 2026-11-17, that a run tagged Chinese or Korean must not turn Japanese for one kana, fixed in `fe30bfb` on 2026-11-19; FredApps found no blocker on 2026-11-19; benandez's re-review pending). Not started: kanji alone with no language, and Chinese text drawn in PingFang HK rather than SC |
 
 ## Backlog
 
@@ -234,6 +234,37 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 ## Log
 
 Newest first.
+
+- **2026-11-22 (upstream merged, the craft UI port; #7009 ported onto it):** Merged upstream
+  `678f9473` (62 commits since `64683a7d`, still 0.18.1), no conflicts. Upstream ported the UI
+  onto the shared craft framework (#7101). Much of `crates/ui-egui` (the ribbon, dialogs,
+  Options, the Start screen, notices) now uses craft-libs components, through the `craft` facade
+  pinned at craft-libs `243d68e`, and the caret and the IME composition are painted by
+  `canvas/caret.rs` through `FaceRun`s. On Windows (Rust 1.99), fmt, clippy (without `xtask`),
+  i18n-report, language, doctest, assets, layers and wasm pass, and 4,711 of 4,719 tests (the
+  port reorganised the UI tests). Clippy on `xtask` still fails on upstream's unused import in
+  `xtask/src/stats.rs`. All eight failing tests need build inputs a plain local build lacks,
+  and the fork's code is upstream's:
+  - four need craft-i18n's hyphenation and spelling data: the three layout hyphenation tests,
+    and `swiss_german_and_portugal_portuguese_keep_their_languages_rules`;
+  - two need craft-i18n's dictionaries, and are new in the list:
+    `add_and_ignore_all_accept_both_normalization_forms`, and
+    `proofing_languages_survive_a_docx_round_trip` (Polish);
+  - two need glyphs only craft-fonts has: `interface_symbols_have_glyphs` (now in
+    `app::fonts`), and the new `the_double_space_option_is_set_in_the_dialog_and_works_when_typing`
+    (☹).
+  `rtl_template_titles_are_right_aligned` no longer fails. A Windows-only note: testing
+  `wordcraft-ui-egui` alone no longer builds its tests, because `craft::ui::testing` comes with the
+  `ui-testing` feature that only `apps/wordcraft` turns on. Test it with `-p wordcraft` beside
+  it, or the whole workspace. Pull requests:
+  - benandez asked on 2026-11-20 for #7009 to take current `main`, saying it might need porting.
+    It did: the composition families, `set_composition_face` and `ime_face` it built on are
+    gone. The layout half carried over, and the drawing moved to `caret.rs`, as `FaceRun`s by
+    script, so no craft-libs change was needed.
+  - FredApps re-reviewed #4638 on 2026-11-19: the fix is right and nothing new blocks it. benandez's
+    re-review is pending.
+  - CodeRabbit's seven findings on #7009 were answered on 2026-11-19: five fixed in `e90a97d`, two
+    declined with reasons.
 
 - **2026-11-18 (upstream merged; #2345, #3022 and #4637 merged upstream; the Mac's sync of
   2026-11-11 joined):** `origin/main` held a sync made and pushed on macOS on 2026-11-11 (upstream
