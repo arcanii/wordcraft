@@ -18,8 +18,8 @@ logged in this file instead.
 
 | | |
 |---|---|
-| Fork `main` is based on | upstream `678f9473` (main at version 0.18.1, after the craft UI port #7101), 2026-11-22 |
-| Last merge of upstream | 2026-11-22: `678f9473`, 62 commits, no conflicts (earlier: `64683a7d`, 153 commits, on 2026-11-18; `cc90520b`, 919 commits, on 2026-11-16; `060768f`, 0.15.1 and 607 commits after it, on 2026-11-11 on macOS, pushed from there and merged into this line on 2026-11-18; `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
+| Fork `main` is based on | upstream `c369c3a2` (main at version 0.18.1), 2026-11-23 |
+| Last merge of upstream | 2026-11-23: `c369c3a2`, 28 commits, no conflicts (earlier: `678f9473`, the craft UI port, 62 commits, on 2026-11-22; `64683a7d`, 153 commits, on 2026-11-18; `cc90520b`, 919 commits, on 2026-11-16; `060768f`, 0.15.1 and 607 commits after it, on 2026-11-11 on macOS, pushed from there and merged into this line on 2026-11-18; `6e0f7e7`, 0.13.2, on 2026-11-01; `ccb8ce8` on 2026-10-30; `d522bfd` on 2026-10-28; `2cf1d6c` on 2026-10-27; `ab0eccd` on 2026-10-26, the tip then, `2c99a42`, not building its tests; `c72e1ca` on 2026-10-25; `00bc6a4` on 2026-10-22; `d1b0bfc`, 0.9.0, on 2026-10-21; `4a251d4` and `f2e15cf`, 0.8.0, on 2026-10-18; `86adfd3` on 2026-10-16, `159b84f` on 2026-10-13, `0db810d` and `ad8c264` on 2026-10-12) |
 | Fork carries | no code: only this file, `AGENTS-aniefork.md`, `docs/memory-aniefork.md` and `docs/memory-aniefork/` differ from upstream |
 
 ## What the fork carries
@@ -234,6 +234,22 @@ don't set `WGPU_BACKEND` for it (a graphics test reads eframe's default backends
 ## Log
 
 Newest first.
+
+- **2026-11-23 (upstream merged, interface polish after the port):** Merged upstream `c369c3a2`
+  (28 commits since `678f9473`, all from 2026-11-22, still 0.18.1), no conflicts. Upstream:
+  - placed the mini toolbar at the selection's start, in two rows;
+  - gave the SmartArt, WordArt, Bullets and Symbol pickers compact tiles;
+  - added portrait template cards in Backstage and a single-ink Discord icon in the title bar;
+  - bound the Table Styles, Borders, Delete and AutoFit menus to their commands, and disabled
+    unimplemented stubs in the command board.
+  
+  On Windows (Rust 1.99), fmt, clippy (without `xtask`), i18n-report, language, doctest, assets,
+  layers and wasm pass, and 4,726 of 4,734 tests. Clippy on `xtask` still fails on upstream's
+  unused import. Of the eight failing tests, six need craft-i18n or craft-fonts data, as on
+  2026-11-22. The other two, `language_menu_reaches_every_language` and
+  `refused_custom_dictionary_leaves_every_other_option_unchanged`, pass when run alone. So does
+  last time's pair of craft-i18n spelling failures, which passed in this run, so these proofing
+  and settings tests depend on what runs beside them. The fork's code is upstream's.
 
 - **2026-11-22 (upstream merged, the craft UI port; #7009 ported onto it):** Merged upstream
   `678f9473` (62 commits since `64683a7d`, still 0.18.1), no conflicts. Upstream ported the UI
